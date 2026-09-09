@@ -65,11 +65,12 @@
   .em{ color:var(--bad); font-weight:700; }
 
   label.field-label{ display:block; font-size:12.5px; color:var(--muted); margin:12px 0 6px; font-weight:700; }
-  select, input[type=text], textarea{
+  select, input[type=text], input[type=password], textarea{
     width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
     border-radius:10px; padding:12px; font-size:15px; font-family:inherit;
   }
-  select:focus, input[type=text]:focus, textarea:focus{ outline:2px solid var(--accent); outline-offset:0; }
+  #in-pw{ letter-spacing:6px; }
+  select:focus, input[type=text]:focus, input[type=password]:focus, textarea:focus{ outline:2px solid var(--accent); outline-offset:0; }
   textarea{ resize:vertical; min-height:120px; line-height:1.6; }
   .row3{ display:flex; gap:6px; }
   .row3 .in-class-select{ flex:0 0 74px; } .row3 input{ flex:1; min-width:0; }
@@ -402,6 +403,9 @@
         <input type="text" id="in-num" placeholder="학번 (예: 10105)" inputmode="numeric">
         <input type="text" id="in-name" placeholder="이름">
       </div>
+      <label class="field-label">개인 비밀번호 (숫자 4자리) — 내 기록을 지키는 암호예요. 처음 정한 번호를 꼭 기억하세요.</label>
+      <input type="password" id="in-pw" inputmode="numeric" maxlength="4" placeholder="숫자 4자리" autocomplete="off">
+      <div class="nudge" id="intro-nudge"></div>
       <div class="btnrow"><button class="btn primary" id="btn-start" disabled>시작하기</button></div>
     </div>
   </section>
@@ -551,9 +555,9 @@
 <!-- 학생 접속 차단 오버레이 -->
 <div id="gate-overlay" class="hidden">
   <div class="gate-box">
-    <div style="font-size:38px">⏸️</div>
-    <h3 id="gate-msg">선생님이 접속을 잠시 멈췄어요</h3>
-    <p>잠시 기다리면 다시 이어서 쓸 수 있어요. 지금까지 쓴 내용은 저장돼 있어요.</p>
+    <div style="font-size:38px">⏳</div>
+    <h3 id="gate-msg">접속 상태를 확인하고 있어요…</h3>
+    <p>잠시만 기다려 주세요. 연결이 되면 화면이 바로 열립니다.</p>
   </div>
 </div>
 
@@ -700,13 +704,29 @@ const Control = {
   state: { access:false, running:true, cap:-1 },   // 배포 기본값: 접속 닫힘 — 교사가 상단바 '접속'으로 열어야 학생 입장
   _localRead(){ try{ const s=JSON.parse(localStorage.getItem(CONTROL_KEY)||"null"); if(s && typeof s==="object") this.state={access:!!s.access, running:!!s.running, cap:(s.cap==null?-1:+s.cap)}; }catch(e){} },
   _localWrite(){ try{ localStorage.setItem(CONTROL_KEY, JSON.stringify(this.state)); }catch(e){} },
+  _pulling:false, _failStreak:0, _confirmed:false,   // _confirmed: 서버 응답을 한 번이라도 정상 수신했는지
   async pull(){
     if(gasConfigured()){
+      if(this._pulling){ return; }         // 이전 요청이 아직 안 끝났으면 건너뛴다 (Apps Script는 응답이 느려 겹치면 과부하)
+      this._pulling = true;
+      const ctrl = new AbortController();
+      const to = setTimeout(()=>ctrl.abort(), 15000);
       try{
-        const r = await fetch(GAS_URL + "?action=controlStatus&_=" + Date.now(), { cache:"no-store" });
+        const r = await fetch(GAS_URL + "?action=controlStatus&_=" + Date.now(), { cache:"no-store", signal:ctrl.signal });
+        const ct = r.headers.get("content-type") || "";
+        if(!r.ok || ct.indexOf("json") < 0) throw new Error("bad response");
         const d = await r.json();
-        if(d && typeof d==="object"){ this.state = { access:!!d.access, running:!!d.running, cap:(d.cap==null?-1:+d.cap) }; this._localWrite(); }
-      }catch(e){ /* 다음 주기에 재시도 */ }
+        if(d && typeof d==="object" && typeof d.access==="boolean"){
+          this.state = { access:!!d.access, running:!!d.running, cap:(d.cap==null?-1:+d.cap) };
+          this._localWrite(); this._failStreak = 0; this._confirmed = true;
+        } else throw new Error("unexpected shape");
+      }catch(e){
+        this._failStreak++;
+        // 상태를 여러 번 연속으로 확인하지 못하면(=닫혔는지 알 수 없음) 안전하게 정지시킨다.
+        if(this._failStreak >= 3) this.state = Object.assign({}, this.state, { access:false });
+      }finally{
+        clearTimeout(to); this._pulling = false;
+      }
     } else {
       this._localRead();
     }
@@ -732,12 +752,21 @@ function gateReason(){
   if(cap >= 0 && state.idx >= cap) return "여기까지 쓰고 선생님을 기다려요. (다음 구간은 선생님이 열어 줘요)";
   return "";
 }
+let _redirecting = false;
 function applyControlToStudent(){
   const ov = document.getElementById("gate-overlay");
   const tp = document.getElementById("teacher-panel");
   const teacherOpen = tp && tp.classList.contains("on");
-  if(ov) ov.classList.toggle("hidden", TEACHER_BYPASS || teacherOpen || Control.state.access !== false);
-  if(TEACHER_BYPASS) return;   // ?t 교사 링크는 학생용 잠금(오버레이·다음 버튼)을 적용하지 않는다
+  if(TEACHER_BYPASS){ if(ov) ov.classList.add("hidden"); return; }   // ?t 교사 링크는 통제 대상 아님
+
+  // 교사가 접속을 닫았고(서버에서 확인됨), 교사 화면도 아니면 → 구글로 튕긴다
+  if(!teacherOpen && Control._confirmed && Control.state.access === false && !_redirecting){
+    _redirecting = true;
+    location.replace("https://www.google.com");
+    return;
+  }
+  // 아직 서버 확인 전이거나 일시적 통신 오류면 튕기지 않고 대기 화면만 보여준다
+  if(ov) ov.classList.toggle("hidden", teacherOpen || Control.state.access !== false);
   const nextBtn = document.getElementById("st-next");
   if(nextBtn){
     const onStep = currentScreenId() === "screen-step";
@@ -753,7 +782,7 @@ function applyControlToStudent(){
 
 /* ===== 상태 ===== */
 const state = {
-  className:"", studentName:"", idx:0,
+  className:"", studentName:"", pw:"", idx:0,
   data:{},              // field id -> 값
   caps:{ com:[], talk:[], lead:[], self:[] },  // 역량별 체크 목록
 };
@@ -808,8 +837,11 @@ function updateProgress(){
 /* ===== 인트로 ===== */
 const classSelect = document.getElementById("in-class");
 for(let i=1;i<=CLASS_COUNT;i++){ const o=document.createElement("option"); o.value=i+"반"; o.textContent=i+"반"; classSelect.appendChild(o); }
+const pwInput = document.getElementById("in-pw");
+pwInput.addEventListener("input", ()=>{ pwInput.value = pwInput.value.replace(/\D/g,"").slice(0,4); checkIntro(); });
 function checkIntro(){
-  const ok = classSelect.value && document.getElementById("in-num").value.trim() && document.getElementById("in-name").value.trim();
+  const ok = classSelect.value && document.getElementById("in-num").value.trim()
+    && document.getElementById("in-name").value.trim() && /^\d{4}$/.test(pwInput.value);
   document.getElementById("btn-start").disabled = !ok;
 }
 classSelect.addEventListener("change", checkIntro);
@@ -819,11 +851,17 @@ document.getElementById("in-name").addEventListener("input", checkIntro);
 document.getElementById("btn-start").addEventListener("click", async ()=>{
   state.className = classSelect.value;
   state.studentName = document.getElementById("in-num").value.trim() + " " + document.getElementById("in-name").value.trim();
+  state.pw = pwInput.value.trim();
+  const nd = document.getElementById("intro-nudge"); nd.textContent = "";
   const btn = document.getElementById("btn-start"); btn.disabled = true;
-  const prev = await fetchPreviousAnswers(state.className, sanitizeKey(state.studentName));
+  const prev = await fetchPreviousAnswers(state.className, sanitizeKey(state.studentName), state.pw);
   btn.disabled = false;
-  if(prev && prev.length){
-    FIELDS.forEach((f,i)=>{ if(prev[i]!==undefined && prev[i]!=="") state.data[f.id] = prev[i]; });
+  if(prev && prev.error === "pw"){
+    nd.textContent = "비밀번호가 일치하지 않아요. 처음 정한 4자리를 다시 확인하세요.";
+    return;
+  }
+  if(prev && Array.isArray(prev.answers) && prev.answers.length){
+    FIELDS.forEach((f,i)=>{ if(prev.answers[i]!==undefined && prev.answers[i]!=="") state.data[f.id] = prev.answers[i]; });
     restoreCapsFromData();
   }
   state.idx = 0;               // notice 부터
@@ -1142,13 +1180,14 @@ function validateCurrent(){
 
 /* ===== Apps Script 연동 ===== */
 function sanitizeKey(name){ return name.trim().slice(0,20).replace(/[\/\\'"\s]/g,"_"); }
-async function fetchPreviousAnswers(cls, key){
+async function fetchPreviousAnswers(cls, key, pw){
   if(!gasConfigured() || !key) return null;
   try{
-    const res = await fetch(GAS_URL + "?action=studentAnswers&class=" + encodeURIComponent(cls) + "&key=" + encodeURIComponent(key) + "&_=" + Date.now(), { cache:"no-store" });
+    const res = await fetch(GAS_URL + "?action=studentAnswers&class=" + encodeURIComponent(cls)
+      + "&key=" + encodeURIComponent(key) + "&pw=" + encodeURIComponent(pw||"") + "&_=" + Date.now(), { cache:"no-store" });
     if(!res.ok) return null;
     const data = await res.json();
-    return (data && Array.isArray(data.answers)) ? data.answers : null;
+    return (data && typeof data === "object") ? data : null;   // { answers:[...] } 또는 { error:"pw" }
   }catch(e){ return null; }
 }
 let resyncTimer = null, reportChain = Promise.resolve();
@@ -1156,7 +1195,7 @@ function reportProgress(){ reportChain = reportChain.then(reportProgressInner).c
 async function reportProgressInner(){
   if(!state.studentName || !state.className || !gasConfigured()) return;
   const payload = {
-    key: sanitizeKey(state.studentName), name: state.studentName, class: state.className,
+    key: sanitizeKey(state.studentName), name: state.studentName, class: state.className, pw: state.pw,
     headers: HEADERS, correctAnswers: CORRECT_ANSWERS, answers: answersArray(), updatedAt: Date.now(),
   };
   const body = JSON.stringify(payload);
@@ -1164,7 +1203,11 @@ async function reportProgressInner(){
   for(let a=0;a<delays.length;a++){
     try{
       const res = await fetch(GAS_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body });
-      if(res.ok){ const j = await res.json().catch(()=>null); if(j && j.ok){ clearTimeout(resyncTimer); setConn("ok"); return; } }
+      if(res.ok){
+        const j = await res.json().catch(()=>null);
+        if(j && j.error === "pw"){ clearTimeout(resyncTimer); setConn("bad","비밀번호가 달라 저장되지 않았어요. 처음 정한 4자리가 맞는지 확인하세요."); return; }
+        if(j && j.ok){ clearTimeout(resyncTimer); setConn("ok"); return; }
+      }
     }catch(e){}
     await new Promise(r=>setTimeout(r, delays[a]));
   }
@@ -1198,7 +1241,7 @@ async function netTest(){
 connTest(); netTest();
 showScreen("intro");
 Control.pull();
-setInterval(()=>Control.pull(), 4000);
+setInterval(()=>Control.pull(), 5000);   // 5초 주기 — 응답이 느린 순간엔 pull() 안의 겹침 방지로 자동으로 한 박자 건너뛴다
 /* ?t=1 교사 링크면 선생님 로그인 창을 바로 띄운다 (버튼 리스너는 다음 스크립트에서 붙으므로 지연 실행) */
 if(TEACHER_BYPASS) setTimeout(()=>{ const b=document.getElementById("btn-teacher-toggle"); if(b) b.click(); }, 0);
 </script>
