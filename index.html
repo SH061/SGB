@@ -1,0 +1,1954 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>나를 보여주는 경험 쓰기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+  :root{
+    /* design-cream-coral 디자인 시스템 (산화와 환원 학습지와 동일) */
+    --bg:#faf9f5; --panel:#efe9de; --panel-2:#f5f0e8; --line:#e6dfd8;
+    --text:#141413; --muted:#6c6a64; --accent:#cc785c; --accent-active:#a9583e;
+    --accent-dim:rgba(204,120,92,.14); --on-accent:#ffffff; --ok:#5db872; --bad:#c64545; --warn:#d4a017;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 700px at 15% -10%, rgba(204,120,92,.06) 0%, transparent 60%),
+      radial-gradient(1000px 600px at 110% 10%, rgba(93,184,166,.06) 0%, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Pretendard','Pretendard Variable',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+    min-height:100vh; -webkit-tap-highlight-color:transparent;
+  }
+  .num{ font-family:'Space Grotesk','Pretendard','Noto Sans KR',sans-serif; }
+  main#app{ max-width:480px; margin:0 auto; padding:10px 12px 48px; }
+
+  header.top{ position:sticky; top:0; z-index:20; background:linear-gradient(180deg,var(--bg) 80%,transparent); padding:6px 0 4px; }
+  .brand{ display:flex; align-items:flex-start; gap:8px; justify-content:space-between; }
+  .brand h1{ font-size:17px; margin:0; font-weight:900; line-height:1.3; letter-spacing:.2px; }
+  .brand h1 .sub{ color:var(--accent); font-size:12px; font-weight:700; margin-left:5px; letter-spacing:0; }
+  .brand-right{ display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex:0 0 auto; }
+  .teacher-toggle{ font-size:10.5px; font-weight:700; padding:5px 9px; border-radius:999px;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--muted); cursor:pointer; white-space:nowrap; }
+  .conn-row{ display:flex; gap:3px; }
+  .conn-badge{ display:inline-flex; align-items:center; gap:3px; font-size:8px; padding:2px 5px; border-radius:999px; white-space:nowrap; }
+  .conn-badge i{ width:5px; height:5px; border-radius:50%; display:inline-block; }
+  .conn-badge.conn-checking{ color:var(--muted); background:var(--panel-2); } .conn-badge.conn-checking i{ background:var(--muted); animation:pulse 1.2s infinite; }
+  .conn-badge.conn-ok{ color:var(--ok); background:rgba(93,184,114,.14); } .conn-badge.conn-ok i{ background:var(--ok); }
+  .conn-badge.conn-bad{ color:var(--bad); background:rgba(198,69,69,.12); } .conn-badge.conn-bad i{ background:var(--bad); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+  .progress-row{ display:flex; align-items:center; gap:8px; margin-top:6px; }
+  .progress-track{ flex:1; height:7px; border-radius:6px; background:var(--panel-2); overflow:hidden; border:1px solid var(--line); }
+  .progress-fill{ height:100%; width:0%; background:linear-gradient(90deg,var(--accent-dim),var(--accent)); transition:width .35s ease; }
+  .progress-label{ font-size:11px; color:var(--muted); white-space:nowrap; }
+
+  /* 학생 화면 — 지금 몇 단계인지 */
+  .stepper{ display:flex; gap:4px; margin-top:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
+  .stepper .st-chip{ flex:0 0 auto; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:999px;
+    background:var(--panel-2); color:var(--muted); border:1px solid var(--line); white-space:nowrap; }
+  .stepper .st-chip.done{ color:var(--accent); border-color:var(--accent-dim); background:var(--accent-dim); }
+  .stepper .st-chip.now{ background:var(--accent); color:var(--on-accent); border-color:transparent; }
+
+  .screen{ display:none; } .screen.on{ display:block; animation:fadein .22s ease; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+  .card{ background:linear-gradient(180deg, var(--panel), var(--panel-2)); border:1px solid var(--line); border-radius:16px; padding:20px 18px; margin-top:14px; }
+  .card h2{ font-size:16.5px; font-weight:800; margin:0 0 8px; letter-spacing:-0.2px; }
+  .card h2 .step-kicker{ display:block; font-size:11.5px; color:var(--accent); font-weight:800; letter-spacing:.3px; margin-bottom:2px; }
+  .card p.desc{ color:var(--muted); font-size:12.5px; line-height:1.65; margin:0 0 12px; white-space:pre-line; }
+  .em{ color:var(--bad); font-weight:700; }
+
+  label.field-label{ display:block; font-size:12.5px; color:var(--muted); margin:12px 0 6px; font-weight:700; }
+  select, input[type=text], textarea{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    border-radius:10px; padding:12px; font-size:15px; font-family:inherit;
+  }
+  select:focus, input[type=text]:focus, textarea:focus{ outline:2px solid var(--accent); outline-offset:0; }
+  textarea{ resize:vertical; min-height:120px; line-height:1.6; }
+  .row3{ display:flex; gap:6px; }
+  .row3 .in-class-select{ flex:0 0 74px; } .row3 input{ flex:1; min-width:0; }
+
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    padding:13px 18px; border-radius:12px; border:1px solid var(--line);
+    background:var(--panel-2); color:var(--text); font-size:15px; font-weight:700; cursor:pointer; appearance:none; -webkit-appearance:none; }
+  .btn.primary{ background:linear-gradient(180deg, var(--accent), var(--accent-active)); border-color:transparent; color:var(--on-accent); }
+  .btn.primary:active{ filter:brightness(.95); }
+  .btn.primary:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn.ghost{ background:transparent; }
+  .btnrow{ display:flex; gap:8px; margin-top:16px; }
+  .btnrow .btn{ flex:1; }
+
+  /* 앞에서 쓴 내용 누적 표시 */
+  .recap{ background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:4px 0 14px; }
+  .recap .recap-h{ font-size:11px; font-weight:700; color:var(--muted); margin-bottom:6px; letter-spacing:.3px; }
+  .recap .recap-item{ font-size:12.5px; line-height:1.55; margin:5px 0; color:var(--text); }
+  .recap .recap-item b{ color:var(--accent); font-weight:700; margin-right:4px; }
+  .pinned{ font-size:12px; background:rgba(204,120,92,.09); border:1px solid var(--accent-dim);
+    border-radius:8px; padding:8px 10px; margin:0 0 12px; line-height:1.5; }
+  .pinned b{ color:var(--accent); }
+
+  /* 1단계 표 */
+  .exp-list{ display:flex; flex-direction:column; gap:8px; }
+  .exp-item{ border:1px solid var(--line); border-radius:10px; padding:10px 11px; background:var(--bg); }
+  .exp-item.sel{ border-color:var(--accent); background:rgba(204,120,92,.06); }
+  .exp-head{ display:flex; align-items:flex-start; gap:8px; }
+  .exp-head .exp-sit{ font-size:12.5px; font-weight:700; flex:1; line-height:1.45; }
+  .exp-head .pick{ flex:0 0 auto; display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); white-space:nowrap; }
+  .exp-head .pick input{ width:16px; height:16px; accent-color:var(--accent); }
+  .exp-item textarea{ min-height:44px; margin-top:7px; font-size:13.5px; }
+
+  /* 자기점검 체크리스트 */
+  .checklist{ display:flex; flex-direction:column; gap:8px; margin:4px 0 6px; }
+  .checklist label{ display:flex; gap:9px; align-items:flex-start; font-size:13px; line-height:1.5; cursor:pointer;
+    background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:10px 11px; }
+  .checklist input{ width:17px; height:17px; margin-top:1px; accent-color:var(--accent); flex:0 0 auto; }
+
+  /* ⑤ 나는 (   ) 사람이다 */
+  .sentence5{ font-size:15px; line-height:2; }
+  .sentence5 input{ display:inline-block; width:auto; min-width:150px; max-width:100%; padding:6px 10px; margin:0 4px; font-size:15px; }
+
+  /* 4단계 역량 체크 */
+  .cap-group{ margin:10px 0 4px; }
+  .cap-group .cap-h{ font-size:13px; font-weight:700; margin-bottom:6px; }
+  .cap-opts{ display:flex; flex-wrap:wrap; gap:6px; }
+  .cap-opt{ font-size:12.5px; padding:7px 10px; border-radius:999px; border:1px solid var(--line);
+    background:var(--bg); color:var(--text); cursor:pointer; }
+  .cap-opt.on{ border-color:var(--accent); background:var(--accent-dim); font-weight:600; }
+
+  .cap-link-row{ border:1px solid var(--line); border-radius:10px; padding:11px; margin:8px 0; background:var(--bg); }
+  .cap-link-row .cap-link-h{ font-size:12.5px; font-weight:700; margin-bottom:7px; }
+  .cap-link-row select{ margin-bottom:7px; font-size:13.5px; }
+  .cap-link-row input{ font-size:13.5px; }
+  .cap-link-row.empty{ opacity:.55; }
+
+  .nudge{ font-size:12px; color:var(--warn); margin-top:8px; min-height:16px; text-align:center; }
+
+  /* ---------- 교사 패널 ---------- */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(24,23,21,.5); display:flex; align-items:center; justify-content:center; z-index:100; padding:16px; }
+  .modal-backdrop.hidden{ display:none; }
+  .modal-card{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:22px; width:100%; max-width:300px; text-align:center; }
+  .modal-card .micon{ font-size:28px; margin-bottom:6px; }
+  .modal-card h3{ margin:0 0 12px; font-size:15px; font-weight:600; }
+  .modal-card input{ text-align:center; letter-spacing:4px; font-size:20px; }
+  .modal-btns{ display:flex; gap:8px; margin-top:14px; } .modal-btns .btn{ flex:1; }
+
+  .teacher-panel{ position:fixed; inset:0; background:var(--bg); z-index:90; overflow-y:auto; display:none; }
+  .teacher-panel.on{ display:block; }
+  .teacher-inner{ max-width:900px; margin:0 auto; padding:0 16px 60px; }
+  .teacher-topbar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; max-width:900px; margin:0 auto;
+    padding:14px 16px 12px; position:sticky; top:0; background:var(--bg); z-index:5; }
+  .teacher-topbar .spacer{ flex:1; }
+  .pill-tab{ padding:8px 15px; border-radius:999px; border:1px solid var(--line); background:var(--panel-2);
+    color:var(--muted); font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap; }
+  .pill-tab.active{ background:var(--accent); color:var(--on-accent); border-color:transparent; }
+  .class-label{ font-size:12.5px; color:var(--muted); white-space:nowrap; }
+  .teacher-topbar .btn{ padding:8px 12px; font-size:12.5px; white-space:nowrap; }
+  .last-updated{ font-size:11px; color:var(--muted); } .last-updated.fresh{ color:var(--ok); }
+
+  #teacher-class-picker{ position:relative; min-height:calc(100vh - 60px); }
+  .class-picker-card{ max-width:460px; width:calc(100% - 40px); background:var(--panel); border:1px solid var(--line);
+    border-radius:20px; padding:40px 36px; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+  .class-picker-card p.desc{ font-size:18px; margin-bottom:20px; text-align:center; }
+  .class-picker-card select{ width:100%; margin-bottom:20px; font-size:18px; padding:13px 15px; border-radius:12px; }
+  .class-picker-card .btn{ display:block; margin:0 auto; font-size:17px; padding:13px 36px; }
+  .class-picker-card #btn-teacher-close{ position:absolute; top:14px; right:18px; margin:0;
+    display:inline-flex; font-size:13px; padding:8px 12px; }
+
+  .stu-grid{ display:flex; flex-direction:column; gap:8px; max-width:900px; margin:0 auto; }
+  .stu-row{ display:flex; align-items:center; gap:14px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 16px; }
+  .stu-name{ font-weight:700; flex:0 0 auto; min-width:96px; }
+  .stu-progress-track{ flex:1; height:8px; border-radius:6px; background:var(--panel-2); overflow:hidden; border:1px solid var(--line); min-width:60px; }
+  .stu-progress-fill{ height:100%; background:linear-gradient(90deg,var(--accent),var(--warn)); transition:width .3s ease; }
+  .stu-count{ font-size:13px; font-weight:700; white-space:nowrap; }
+  .stu-items{ font-size:12px; color:var(--muted); white-space:nowrap; min-width:78px; text-align:right; }
+  .stu-empty, .storage-warning{ color:var(--muted); text-align:center; padding:28px 10px; }
+  .storage-warning{ color:var(--bad); }
+
+  .tq-nav{ display:flex; align-items:center; justify-content:space-between; gap:10px; max-width:900px; margin:0 auto 10px; }
+  .tq-count{ font-size:13px; color:var(--muted); font-weight:700; text-align:center; flex:1; }
+  .tg-card{ max-width:900px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; }
+  .tg-title{ font-size:18px; font-weight:700; margin-bottom:4px; }
+  .tg-sub{ font-size:12.5px; color:var(--muted); margin-bottom:14px; }
+  .reveal-gate{ text-align:center; margin:16px 0; }
+  .resp-count{ font-size:13px; color:var(--muted); margin-bottom:10px; text-align:center; }
+  .ans-card{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:13px 15px; cursor:pointer; margin-bottom:9px; }
+  .ans-card:hover{ border-color:var(--accent); }
+  .ans-card .tf-q{ font-size:11.5px; font-weight:700; color:var(--accent); margin:8px 0 2px; }
+  .ans-card .tf-q:first-child{ margin-top:0; }
+  .ans-card .tf-a{ font-size:13.5px; line-height:1.6; white-space:pre-wrap; }
+  .ans-card .tf-a.blank{ color:var(--muted); font-style:italic; }
+
+  .spotlight-overlay{ position:fixed; inset:0; background:rgba(24,23,21,0); z-index:110; display:flex; align-items:center; justify-content:center; padding:24px; opacity:0; transition:opacity .28s ease, background .28s ease; }
+  .spotlight-overlay.show{ background:rgba(24,23,21,.82); opacity:1; }
+  .spotlight-box{ max-width:340px; width:100%; max-height:80vh; overflow:auto; background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:24px; transform:scale(1); transition:transform .32s cubic-bezier(.22,1,.36,1); }
+  .spotlight-overlay.show .spotlight-box{ transform:scale(1.9); }
+  .spotlight-box .tf-q{ font-size:11px; font-weight:700; color:var(--accent); margin:9px 0 2px; }
+  .spotlight-box .tf-q:first-child{ margin-top:0; }
+  .spotlight-box .tf-a{ font-size:13px; line-height:1.6; white-space:pre-wrap; }
+  .spotlight-close{ margin-top:16px; width:100%; }
+
+  .hidden{ display:none !important; }
+
+  /* ===== 문제 통제 탭 ===== */
+  .control-panel{ max-width:640px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+  .control-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+  .control-card h3{ margin:0 0 4px; font-size:15px; }
+  .control-card p.h{ margin:0 0 12px; font-size:12.5px; color:var(--muted); line-height:1.6; }
+  .big-toggle{ width:100%; padding:15px; border-radius:12px; font-size:15px; font-weight:800; border:2px solid var(--line); background:var(--bg); color:var(--text); cursor:pointer; }
+  .big-toggle.on{ background:var(--accent-dim); color:var(--accent-active); border-color:var(--accent); }
+  .big-toggle.off{ background:rgba(198,69,69,.12); color:var(--bad); border-color:rgba(198,69,69,.4); }
+  .big-toggle.confirm{ background:rgba(198,69,69,.32); color:var(--bad); border-color:var(--bad); }
+  .big-toggle.run{ background:rgba(93,184,114,.16); color:#3f9a4e; border-color:#5db872; }
+  .big-toggle.pause{ background:rgba(212,160,23,.18); color:#8a6d0c; border-color:var(--warn); }
+  .cap-select-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .cap-select-row select{ flex:1; min-width:180px; }
+  .control-status{ font-size:12.5px; color:var(--muted); margin-top:12px; text-align:center; line-height:1.7; }
+  .control-status b{ color:var(--text); }
+
+  /* ===== 인쇄 탭 ===== */
+  .print-picker{ max-width:640px; margin:0 auto; }
+  .print-tools{ display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  .print-tools .btn{ padding:8px 12px; font-size:12.5px; }
+  .stu-check-list{ display:flex; flex-direction:column; gap:6px; max-height:54vh; overflow:auto; border:1px solid var(--line); border-radius:12px; padding:8px; background:var(--panel-2); }
+  .stu-check{ display:flex; gap:10px; align-items:center; padding:9px 11px; border-radius:8px; background:var(--bg); border:1px solid var(--line); cursor:pointer; }
+  .stu-check input{ width:18px; height:18px; accent-color:var(--accent); }
+  .stu-check .n{ font-weight:700; }
+  .print-hint{ font-size:11.5px; color:var(--muted); margin-top:12px; line-height:1.75; }
+
+  /* ===== 학생 접속 차단 오버레이 ===== */
+  #gate-overlay{ position:fixed; inset:0; z-index:200; background:rgba(20,20,19,.92);
+    display:flex; align-items:center; justify-content:center; padding:24px; }
+  #gate-overlay .gate-box{ background:var(--panel-2); border:1px solid var(--line); border-radius:16px;
+    padding:30px 26px; max-width:340px; text-align:center; }
+  #gate-overlay h3{ margin:8px 0 8px; font-size:17px; }
+  #gate-overlay p{ margin:0; font-size:13px; color:var(--muted); line-height:1.7; }
+
+  /* ===== 인쇄 출력 — 원본 양식(나를 보여주는 경험쓰기 수정본) 재현 ===== */
+  #print-root{ display:none; }
+  @media print{
+    body.printing > *{ display:none !important; }
+    body.printing #print-root{ display:block !important; width:auto; position:static; }
+    /* 각 쪽은 새 A4 앞면에서 시작 — 앞 쪽이 넘쳐도 다음 쪽은 깨끗한 새 장에서 시작한다 */
+    .formdoc .pg{ page-break-before: always; }
+    .formdoc .stu-form:first-child .pg:first-child{ page-break-before: auto; }
+    /* ⚠️ 브라우저는 인쇄 시 배경색을 기본으로 지운다 — 셀 음영을 강제로 남긴다 */
+    .formdoc, .formdoc *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    .formdoc table.f thead th{ background:#dce6f1 !important; }
+    .formdoc .big2-h{ background:#dce6f1 !important; }
+    .formdoc .intro .redb{ color:#c00000 !important; }
+    @page{ size:A4 portrait; margin:14mm 15mm; }
+  }
+  .formdoc{ color:#000; font-family:'Pretendard',-apple-system,'Malgun Gothic',sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .formdoc .pg{ font-size:10pt; line-height:1.45; }
+  .formdoc .doc-title{ text-align:center; font-weight:800; font-size:13.5pt; margin:0 0 6pt; letter-spacing:-0.4px; }
+  .formdoc .name-line{ font-size:9pt; margin:0 0 6pt; }
+  .formdoc .intro{ border:1px solid #7a7a7a; padding:7pt 9pt; font-size:8.4pt; line-height:1.5; margin:0 0 10pt; }
+  .formdoc .intro div{ margin:1.5pt 0; }
+  .formdoc .intro .redb{ color:#c00000; font-weight:800; }
+  .formdoc .intro .k{ font-weight:800; margin-top:3pt; }
+  .formdoc .step-h{ font-weight:800; font-size:11.5pt; margin:11pt 0 3pt; }
+  .formdoc .step-h .paren{ font-size:8pt; font-weight:400; }
+  .formdoc .step-lead{ font-size:8.4pt; color:#222; margin:0 0 5pt; line-height:1.45; }
+  .formdoc .step-lead.big{ font-size:10pt; font-weight:700; color:#000; margin:6pt 0; }
+  .formdoc table.f{ width:100%; border-collapse:collapse; margin:3pt 0; table-layout:fixed; page-break-inside:auto; }
+  .formdoc table.f th, .formdoc table.f td{ border:1px solid #5f5f5f; padding:5pt 6pt; vertical-align:top; font-size:8.8pt;
+    word-break:keep-all; overflow-wrap:anywhere; hyphens:none; }
+  .formdoc table.f thead th{ background:#dce6f1; text-align:center; vertical-align:middle; font-weight:700; }
+  .formdoc table.f tr{ page-break-inside:avoid; break-inside:avoid; }
+  .formdoc table.f td.q{ white-space:pre-line; }
+  .formdoc table.f td.ans{ min-height:22pt; white-space:pre-wrap; }
+  .formdoc td.sit{ text-align:center; vertical-align:middle; font-size:8pt; line-height:1.35; }
+  .formdoc td.center{ text-align:center; vertical-align:middle; }
+  .formdoc .sel-mark{ text-align:center; font-size:12pt; }
+  .formdoc .big2-h{ background:#dce6f1; border:1px solid #5f5f5f; border-bottom:none; font-size:8.6pt; padding:4pt 6pt; font-weight:700; }
+  .formdoc .big2-box{ border:1px solid #5f5f5f; min-height:120pt; padding:7pt; white-space:pre-wrap; font-size:9.2pt; line-height:1.5; }
+  .formdoc .chk{ font-size:8.8pt; line-height:1.95; margin:2pt 0 4pt; }
+  .formdoc .cap-cols{ font-size:8.4pt; line-height:1.8; margin:2pt 0 5pt; }
+  .formdoc .cap-cols .cg{ font-weight:800; margin-top:4pt; }
+  .formdoc .cap-cols .ci{ display:inline-block; min-width:31%; margin-right:1.5%; }
+  .formdoc .pg.pg-pad{ min-height:0; }
+  /* 아이들이 많이 쓰면 그 쪽만 자동으로 글자·여백을 줄여 한 장 안에 맞춘다 (fitFormPages) */
+  .formdoc .pg.shrunk{ line-height:1.32; }
+  .formdoc .pg.shrunk table.f th, .formdoc .pg.shrunk table.f td{ padding:3pt 5pt; }
+  .formdoc .pg.shrunk table.f td.ans{ min-height:13pt; }
+  .formdoc .pg.shrunk .intro{ padding:5pt 7pt; margin-bottom:6pt; line-height:1.4; }
+  .formdoc .pg.shrunk .intro div{ margin:1pt 0; }
+  .formdoc .pg.shrunk .step-h{ margin:6pt 0 2pt; }
+  .formdoc .pg.shrunk .step-lead{ margin:0 0 3pt; }
+  .formdoc .pg.shrunk .step-lead.big{ margin:4pt 0; }
+  .formdoc .pg.shrunk .big2-box{ min-height:56pt; }
+  .formdoc .pg.shrunk .chk{ line-height:1.6; }
+  .formdoc .pg.shrunk .cap-cols{ line-height:1.55; }
+  #print-root{ width:180mm; margin:0 auto; }
+  /* 양식 편집 — 표 열 너비 드래그 손잡이 */
+  #form-edit-preview table.f{ position:relative; }
+  #form-edit-preview .col-grip{ position:absolute; top:0; width:11px; height:100%; margin-left:-5px;
+    cursor:col-resize; z-index:6; }
+  body.wcw-editing #form-edit-preview .col-grip{ background:linear-gradient(90deg,transparent 45%,rgba(204,120,92,.28) 45%,rgba(204,120,92,.28) 55%,transparent 55%); }
+  body.wcw-editing #form-edit-preview .col-grip:hover{ background:rgba(204,120,92,.4); }
+  body:not(.wcw-editing) #form-edit-preview .col-grip{ display:none; }
+
+  /* ===== 선생님 화면 — 교실에서 크게·넓게 보기 (학생 화면은 그대로 폰 크기) ===== */
+  .teacher-inner{ max-width:none; width:100%; }
+  .teacher-topbar{ max-width:none; width:100%; }
+  .pill-tab{ font-size:15px; padding:10px 20px; }
+  .teacher-topbar .btn{ font-size:13.5px; padding:9px 15px; }
+  .class-label{ font-size:14px; }
+  .stu-grid, .tq-nav, .tg-card{ max-width:none; width:100%; }
+  .stu-row{ padding:15px 20px; gap:18px; }
+  .stu-name{ font-size:16px; min-width:120px; }
+  .stu-progress-track{ height:11px; }
+  .stu-count{ font-size:15px; }
+  .stu-items, .stu-stage{ font-size:13px; }
+  .stu-stage{ color:var(--accent); font-weight:700; white-space:nowrap; flex:0 0 auto; min-width:92px; }
+  .tg-title{ font-size:22px; }
+  .tg-sub{ font-size:14px; }
+  .resp-count{ font-size:15px; }
+  .ans-card{ padding:16px 20px; }
+  .ans-card .tf-q{ font-size:13px; }
+  .ans-card .tf-a{ font-size:16px; line-height:1.65; }
+  .tq-count{ font-size:15px; }
+  #btn-tg-reveal{ font-size:22px; font-weight:800; padding:20px 36px; }
+  .control-status{ font-size:13px; color:var(--muted); }
+  .control-status b{ color:var(--text); }
+
+  /* 상단바 접속·문제풀기 버튼 — 산화와 환원 학습지와 동일한 클래스·톤 */
+  .ctl-sep{ width:1px; height:22px; background:var(--line); margin:0 4px; flex:0 0 auto; }
+  .gate-btn{ font-weight:800; padding:9px 15px; font-size:13px; white-space:nowrap; }
+  .gate-btn.state-unknown{ opacity:.6; }
+  .gate-btn.state-closed{ background:rgba(213,86,107,.16); color:var(--bad); border-color:rgba(213,86,107,.4); }
+  .gate-btn.state-open{ background:var(--accent-dim); color:var(--accent); border-color:var(--accent); }
+  .gate-btn.state-confirm{ background:rgba(213,86,107,.35); color:var(--bad); border-color:var(--bad); }
+  .ps-btn{ font-weight:800; padding:9px 15px; font-size:13px; white-space:nowrap; }
+  .ps-btn.state-running{ background:rgba(93,184,114,.16); color:#3f7d54; border-color:rgba(93,184,114,.5); }
+  .ps-btn.state-confirm{ background:rgba(212,160,23,.28); color:#9c7a0e; border-color:rgba(212,160,23,.55); }
+  .ps-btn.state-stopped{ background:rgba(213,86,107,.35); color:var(--bad); border-color:var(--bad); }
+  .teacher-topbar #ctl-cap{ font-size:12.5px; padding:8px 9px; border-radius:10px; max-width:190px; }
+  .teacher-topbar #ctl-cap-next{ font-size:12.5px; padding:8px 12px; }
+  .spotlight-box{ max-width:520px; }
+  .spotlight-overlay.show .spotlight-box{ transform:scale(1.7); }
+  .spotlight-box .tf-a{ font-size:16px; }
+  body.teacher-fs .stu-grid, body.teacher-fs .tq-nav{ max-width:none; }
+
+  /* ===== 고치기 ===== */
+  #edit-fab{ position:fixed; left:12px; top:10px; z-index:140; font-size:12.5px; font-weight:700; padding:9px 13px; border-radius:999px;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--muted); cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.14); }
+  #edit-fab.on{ background:var(--accent); color:var(--on-accent); border-color:transparent; }
+  main#app > header.top .brand{ padding-left:76px; }
+  #edit-fab{ font-size:11.5px; padding:7px 10px; }
+  .teacher-topbar{ padding-left:78px; }
+  body.wcw-editing [data-editz]{ outline:1px dashed rgba(204,120,92,.55); outline-offset:2px; border-radius:3px; cursor:text; }
+  body.wcw-editing [data-editz]:focus{ outline:2px solid var(--accent); background:rgba(204,120,92,.06); }
+  [data-edit-hidden]{ display:none !important; }
+
+  /* 인쇄 탭 — 양식 편집 미리보기 */
+  #form-edit-wrap{ margin-top:12px; }
+  #form-edit-preview{ display:none; background:#fff; border:1px solid var(--line); border-radius:8px;
+    padding:12px; max-height:72vh; overflow:auto; margin-top:10px; }
+  #form-edit-preview.on{ display:block; }
+  #form-edit-preview .pg{ border:1px solid #ddd; border-radius:4px; padding:8mm 7mm; margin:0 auto 12px; max-width:190mm; background:#fff; }
+  .formdoc{ display:block; }
+  #edit-toolbar{ position:fixed; top:0; left:50%; transform:translateX(-50%); z-index:131; display:flex; gap:4px; align-items:center;
+    flex-wrap:wrap; justify-content:center; background:var(--panel-2); border:1px solid var(--line); border-top:none;
+    border-radius:0 0 12px 12px; padding:6px 8px; max-width:97vw; box-shadow:0 6px 20px rgba(0,0,0,.16); }
+  #edit-toolbar.hidden{ display:none; }
+  #edit-toolbar button{ font-size:11.5px; padding:6px 7px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); cursor:pointer; white-space:nowrap; line-height:1; }
+  #edit-toolbar button:active{ background:var(--accent-dim); }
+  #edit-toolbar .sep{ width:1px; height:18px; background:var(--line); margin:0 2px; }
+  #edit-toolbar .swatch{ width:17px; height:17px; padding:0; border-radius:50%; border:1px solid rgba(0,0,0,.15); }
+
+  /* ===== 교사 화면 전체화면 ===== */
+  body.teacher-fs .teacher-inner{ max-width:none; padding-left:8px; padding-right:8px; }
+  body.teacher-fs .teacher-topbar{ max-width:none; }
+  body.teacher-fs .tg-card, body.teacher-fs .stu-grid, body.teacher-fs .tq-nav{ max-width:none; }
+  #btn-teacher-fs{ padding:8px 12px; font-size:12.5px; white-space:nowrap; }
+</style>
+</head>
+<body>
+<main id="app">
+  <header class="top">
+    <div class="brand">
+      <h1>나를 보여주는 경험 쓰기<span class="sub" id="topic-sub">자기이해 · 성장 기록</span></h1>
+      <div class="brand-right">
+        <div class="conn-row">
+          <div class="conn-badge conn-checking" id="net-status"><i></i>인터넷</div>
+          <div class="conn-badge conn-checking" id="conn-status"><i></i>연결</div>
+        </div>
+        <button class="teacher-toggle" id="btn-teacher-toggle">🧑‍🏫 선생님 보기</button>
+      </div>
+    </div>
+    <div class="progress-row" id="progress-row" style="display:none;">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="progress-label">0 / 0</div>
+    </div>
+    <div class="stepper" id="stepper" style="display:none;"></div>
+  </header>
+
+  <!-- 인트로 -->
+  <section class="screen" id="screen-intro">
+    <div class="card">
+      <h2>시작하기 전에</h2>
+      <p class="desc">반과 학번, 이름을 입력하면 오늘 활동을 시작할 수 있어요. 쓴 내용은 저장되니, 중간에 창을 닫아도 다시 이어서 쓸 수 있어요.</p>
+      <label class="field-label">반 · 학번 · 이름</label>
+      <div class="row3">
+        <select id="in-class" class="in-class-select"><option value="">반</option></select>
+        <input type="text" id="in-num" placeholder="학번 (예: 10105)" inputmode="numeric">
+        <input type="text" id="in-name" placeholder="이름">
+      </div>
+      <div class="btnrow"><button class="btn primary" id="btn-start" disabled>시작하기</button></div>
+    </div>
+  </section>
+
+  <!-- 주의사항 -->
+  <section class="screen" id="screen-notice">
+    <div class="card">
+      <h2>시작하기 전에_ 이 기록은 어디에 쓰일까요?</h2>
+      <p class="desc">여기에 쓴 내용은 선생님이 <b>생활기록부</b>를 기록할 때 쓰는 바탕 자료입니다.
+'책임감이 있다', '친구들과 잘 지낸다' 같은 말만으로는 기록이 되지 않습니다.
+<span class="em">언제 · 어디서 · 무엇을 · 어떻게</span> 했는지가 담겨야 여러분의 모습이 드러납니다.</p>
+      <div class="recap">
+        <div class="recap-h">&lt;쓰기 약속 세 가지&gt;</div>
+        <div class="recap-item"><b>①</b> 한 문장에 '누구와 · 무엇을 · 어떻게'가 들어가게 씁니다.</div>
+        <div class="recap-item"><b>②</b> 꾸며내지 않고, 실제로 있었던 일만 씁니다. 작은 일도 괜찮습니다.</div>
+        <div class="recap-item"><b>③</b> 떠오르지 않으면, 올해 있었던 일 중 가장 또렷하게 기억나는 장면부터 씁니다.</div>
+      </div>
+      <p class="desc">※ 이 활동은 두 번에 걸쳐 합니다. 오늘은 1차로 쓰고, 스스로 점검한 뒤 2차에서 더 자세히 고쳐 씁니다.</p>
+      <div class="btnrow">
+        <button class="btn ghost" data-back>◀ 이전</button>
+        <button class="btn primary" data-next>시작 ▶</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 동적 단계 화면 -->
+  <section class="screen" id="screen-step">
+    <div class="card">
+      <h2 id="st-title"><span class="step-kicker" id="st-kicker"></span><span id="st-heading"></span></h2>
+      <p class="desc" id="st-desc"></p>
+      <div class="pinned hidden" id="st-pinned"></div>
+      <div class="recap hidden" id="st-recap"></div>
+      <div id="st-body"></div>
+      <div class="nudge" id="st-nudge"></div>
+      <div class="btnrow">
+        <button class="btn ghost" data-back>◀ 이전</button>
+        <button class="btn primary" data-next id="st-next">다음 ▶</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 완료 -->
+  <section class="screen" id="screen-done">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:38px;">🎉</div>
+      <h2>고생했어요!</h2>
+      <p class="desc">오늘 쓴 내용이 선생님께 잘 전달됐어요. 필요하면 다시 들어와 고쳐 쓸 수 있어요.</p>
+      <div class="btnrow"><button class="btn ghost" data-back>◀ 다시 보기</button></div>
+    </div>
+  </section>
+</main>
+
+<!-- 선생님 암호 모달 -->
+<div class="modal-backdrop hidden" id="teacher-gate-modal">
+  <div class="modal-card">
+    <div class="micon">🔒</div><h3>선생님 암호</h3>
+    <input id="teacher-gate-input" type="password" inputmode="numeric" maxlength="8" placeholder="••••">
+    <div class="modal-btns">
+      <button class="btn ghost" id="teacher-gate-cancel">취소</button>
+      <button class="btn primary" id="teacher-gate-confirm">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 선생님 패널 -->
+<div class="teacher-panel" id="teacher-panel">
+  <div class="teacher-inner">
+    <div id="teacher-class-picker">
+      <div class="class-picker-card">
+        <button class="btn ghost" id="btn-teacher-close">닫기 ✕</button>
+        <p class="desc">확인할 반을 선택하세요</p>
+        <select id="teacher-class-select"></select>
+        <button class="btn primary" id="btn-confirm-class">확인</button>
+      </div>
+    </div>
+    <div id="teacher-main" class="hidden">
+      <div class="teacher-topbar">
+        <button class="pill-tab active" id="tab-progress">진행 상황</button>
+        <button class="pill-tab" id="tab-results">단계별 결과</button>
+        <button class="pill-tab" id="tab-print">인쇄</button>
+        <span class="ctl-sep"></span>
+        <button class="btn gate-btn state-unknown" id="ctl-access" type="button">접속 확인 중…</button>
+        <button class="btn ps-btn state-running" id="ctl-run" type="button">문제풀기 시작!</button>
+        <select id="ctl-cap" title="여기까지만 풀 수 있게 제한"></select>
+        <button class="btn ghost" id="ctl-cap-next" type="button" title="다음 구간까지 열기">구간 ▶</button>
+        <span class="spacer"></span>
+        <span class="class-label" id="teacher-current-class"></span>
+        <button class="btn ghost" id="btn-change-class">반 변경</button>
+        <button class="btn ghost" id="btn-teacher-refresh">↻ 새로고침</button>
+        <button class="btn ghost" id="btn-teacher-close2">✕</button>
+      </div>
+      <div style="max-width:none; margin:-4px 0 10px; padding:0 16px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <span class="control-status" id="ctl-status" style="margin-top:0; text-align:left;"></span>
+        <span class="last-updated" id="teacher-last-updated"></span>
+      </div>
+      <div id="view-progress"><div class="stu-grid" id="teacher-progress-body"></div></div>
+      <div id="view-results" class="hidden">
+        <div class="tq-nav">
+          <button class="btn ghost" id="btn-tg-prev">◀ 이전 단계</button>
+          <span class="tq-count" id="tg-count">1 / 6</span>
+          <button class="btn ghost" id="btn-tg-next">다음 단계 ▶</button>
+        </div>
+        <div class="tg-card">
+          <div class="tg-title" id="tg-title"></div>
+          <div class="tg-sub" id="tg-sub"></div>
+          <div class="reveal-gate" id="tg-reveal-gate"><button class="btn primary" id="btn-tg-reveal">결과 보기</button></div>
+          <div id="tg-result" class="hidden">
+            <div class="resp-count" id="tg-resp-count"></div>
+            <div id="tg-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 인쇄 -->
+      <div id="view-print" class="hidden">
+        <div class="print-picker">
+          <div class="print-tools">
+            <button class="btn ghost" id="pr-all">☑ 모두 선택</button>
+            <button class="btn ghost" id="pr-none">모두 해제</button>
+            <span class="class-label" id="pr-count">0명 선택</span>
+            <span class="spacer" style="flex:1"></span>
+            <button class="btn primary" id="pr-go">선택 학생 인쇄</button>
+          </div>
+          <div class="stu-check-list" id="print-stu-list"></div>
+          <label class="stu-check" style="margin-top:8px;border-style:dashed;">
+            <input type="checkbox" id="pr-pad"><span>양면 인쇄용 빈 페이지 추가 <span style="font-size:11px;color:var(--muted)">(학생당 4쪽 — 뒷면에 다음 학생이 안 섞임)</span></span>
+          </label>
+          <div class="print-hint">
+            · 기본은 원본 그대로 <b>3쪽</b>. 양면(장기 넘김) 인쇄 시 학생 사이가 섞이는 게 걱정되면 위 <b>빈 페이지 추가</b>를 켜세요.<br>
+            · 인쇄 대화상자에서 여백 "기본" · 배율 100%로 두면 양식이 제대로 나옵니다.<br>
+            · 데이터가 안 보이면 상단 "↻ 새로고침"을 먼저 누르세요. (연결 전에는 "지금 내 화면 미리보기"만 가능)
+          </div>
+
+          <div id="form-edit-wrap">
+            <div class="print-tools">
+              <button class="btn ghost" id="btn-form-edit-preview">✎ 양식 편집 미리보기 열기</button>
+              <span class="class-label">— 왼쪽 위 [✎ 고치기]로 양식 문구·표를 고칩니다. 모든 학생 인쇄에 적용됩니다.</span>
+            </div>
+            <div id="form-edit-preview" class="formdoc"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 학생 접속 차단 오버레이 -->
+<div id="gate-overlay" class="hidden">
+  <div class="gate-box">
+    <div style="font-size:38px">⏸️</div>
+    <h3 id="gate-msg">선생님이 접속을 잠시 멈췄어요</h3>
+    <p>잠시 기다리면 다시 이어서 쓸 수 있어요. 지금까지 쓴 내용은 저장돼 있어요.</p>
+  </div>
+</div>
+
+<!-- 인쇄 전용 출력 영역 -->
+<div id="print-root" class="formdoc"></div>
+
+<div class="spotlight-overlay hidden" id="spotlight-overlay">
+  <div class="spotlight-box"><div id="spotlight-body"></div>
+    <button class="btn ghost spotlight-close" id="spotlight-close">닫기</button></div>
+</div>
+
+<script>
+/* ===== 설정 ===== */
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwIQ7M47DHuOW3QKZPQD1zfMIlS26GqXqcVh9foVoSpE7cHBPcB5Os95S0697CoqnE/exec";
+function gasConfigured(){ return !!GAS_URL && GAS_URL.indexOf("PASTE_YOUR_") !== 0; }
+const TEACHER_PASSCODE = "3699";
+const CLASS_COUNT = 10;
+
+/* ===== 1단계 상황 목록 ===== */
+const SITUATIONS = [
+  "수업·모둠에서 내가 맡거나 이끈 일",
+  "친구나 주변 사람을 도운 일",
+  "힘들었지만 끝까지 해낸 일",
+  "잘 안 되어서 방법을 바꿔 본 일",
+  "처음으로 해 본 일 · 도전한 일",
+  "다툼이나 문제를 풀어 본 일",
+];
+
+/* ===== 4단계 역량 ===== */
+const CAPS = [
+  { id:"com",  name:"공동체 역량", opts:["친구를 배려한다","맡은 일을 책임지고 한다","모둠 활동에 적극 참여한다","다른 사람의 입장을 생각한다","갈등 해결을 시도한다","학급을 위해 먼저 행동한다"] },
+  { id:"talk", name:"소통 역량",   opts:["다른 사람의 말을 잘 듣는다","내 생각을 설명한다","의견을 존중한다","의견이 다를 때 대화로 해결한다","공감한다","필요한 말을 적절하게 표현한다"] },
+  { id:"lead", name:"주도성 · 창의성", opts:["아이디어를 낸다","먼저 시작한다","기존 방법을 바꾼다","불편한 점을 개선한다","새로운 방법을 제안한다","새로운 것에 도전한다"] },
+  { id:"self", name:"자기관리 역량", opts:["공부 계획을 세운다","시간을 관리한다","부족한 점을 고친다","하기 싫은 일도 끝까지 한다","목표를 세우고 실천한다","실패해도 다시 시도한다"] },
+];
+
+/* ===== 필드(= 구글 시트 열) 정의. 순서가 곧 열 순서. ===== */
+const FIELDS = [
+  ...SITUATIONS.map((s,i)=>({ id:"s1_m"+(i+1), header:"1단계 메모 — "+s, group:"g1", optional:true })),
+  { id:"s1_pick", header:"1단계에서 고른 대표 경험", group:"g1" },
+
+  { id:"s2_1", header:"2단계 ① 언제·어디서·누구와 있었던 일", group:"g2" },
+  { id:"s2_2", header:"2단계 ② 나는 무엇을 했다 ('…했다'로)", group:"g2" },
+  { id:"s2_3", header:"2단계 ③ 왜 그렇게 했나 / 그때 마음은 어땠나", group:"g2" },
+  { id:"s2_4", header:"2단계 ④ 그 결과 무엇이 달라졌나 (나/친구/모둠/결과물)", group:"g2" },
+  { id:"s2_5", header:"2단계 ⑤ 이 경험이 보여 주는 나의 모습 (나는 (   ) 사람이다)", group:"g2" },
+  { id:"s2_6", header:"2단계 ⑥ 그 뒤로 내가 새로 한 행동이나 습관", group:"g2" },
+
+  { id:"s2_check", header:"2차 전 자기점검 — 확인한 항목", group:"g3", optional:true },
+  { id:"s2_final", header:"2차 — ①~⑥을 이어서 쓴 하나의 이야기", group:"g3" },
+
+  { id:"s3_1", header:"3단계 ① 어떤 문제·어려움이었나", group:"g4" },
+  { id:"s3_2", header:"3단계 ② 처음에 나는 어떻게 했나 (솔직하게)", group:"g4" },
+  { id:"s3_3", header:"3단계 ③ 방법을 어떻게 바꿨나 / 누구에게 도움을 청했나", group:"g4" },
+  { id:"s3_4", header:"3단계 ④ 결과는 어떻게 되었나", group:"g4" },
+  { id:"s3_5", header:"3단계 ⑤ 배운 점 / 비슷한 일이 또 생기면 하고 싶은 것", group:"g4" },
+
+  { id:"s4_com",  header:"4단계 공동체 역량 — 대표 항목 · 연결되는 경험", group:"g5" },
+  { id:"s4_talk", header:"4단계 소통 역량 — 대표 항목 · 연결되는 경험", group:"g5" },
+  { id:"s4_lead", header:"4단계 주도성·창의성 — 대표 항목 · 연결되는 경험", group:"g5" },
+  { id:"s4_self", header:"4단계 자기관리 역량 — 대표 항목 · 연결되는 경험", group:"g5" },
+
+  { id:"s5_num",   header:"5단계 친구 학번", group:"g6" },
+  { id:"s5_name",  header:"5단계 친구 이름", group:"g6" },
+  { id:"s5_act",   header:"5단계 고마웠던·본받고 싶었던 구체적인 행동·장면 (언제, 무엇을)", group:"g6" },
+  { id:"s5_trait", header:"5단계 그 행동이 보여 주는 그 친구의 모습 (한 줄)", group:"g6" },
+  { id:"s5_mine",  header:"5단계 나도 해 보고 싶은 점", group:"g6" },
+];
+const HEADERS = FIELDS.map(f=>f.header);
+const CORRECT_ANSWERS = FIELDS.map(()=> "");   // 이 활동은 정답이 없음
+
+const GROUPS = [
+  { id:"g1", title:"1단계 · 경험 꺼내기", sub:"올해 있었던 일 중 고른 장면들과, 자세히 쓸 대표 경험" },
+  { id:"g2", title:"2-1 · 한 경험 자세히 쓰기 〈행동 확대경〉 (1차)", sub:"①~⑥ 항목별 1차 답" },
+  { id:"g3", title:"2-2 · 자기점검 + 2차 이어 쓰기", sub:"점검 항목과, ①~⑥을 이어서 다시 쓴 하나의 이야기" },
+  { id:"g4", title:"3단계 · 어려웠던 일 넘어서기", sub:"2단계와 다른 경험 — ①~⑤" },
+  { id:"g5", title:"4단계 · 역량 진단 연결", sub:"역량별 대표 항목과 연결되는 경험" },
+  { id:"g6", title:"5단계 · 친구에게서 본 것", sub:"관찰한 친구의 구체적 행동" },
+];
+
+/* ===== 흐름 ===== */
+const FLOW = [
+  { key:"notice" },
+  { key:"s1", kicker:"1단계", heading:"경험 꺼내기",
+    desc:"올해 있었던 일 중 아래 상황에 해당하는 장면을 한 줄씩 짧게 메모합니다. 모두 채우지 않아도 됩니다.\n그중 가장 자세히 쓰고 싶은 경험 하나를 오른쪽에서 골라 주세요." },
+
+  { key:"s2_1", kicker:"2단계 · 한 경험 자세히 쓰기 〈행동 확대경〉 (1차)", heading:"① 언제·어디서·누구와 있었던 일인가요",
+    field:"s2_1", pinPick:true },
+  { key:"s2_2", kicker:"2단계 (1차)", heading:"② 나는 무엇을 했나요",
+    desc:"'…했다'로 끝나는 문장으로 씁니다.", field:"s2_2", pinPick:true, recap:["s2_1"] },
+  { key:"s2_3", kicker:"2단계 (1차)", heading:"③ 왜 그렇게 했나요 / 그때 마음은 어땠나요",
+    field:"s2_3", pinPick:true, recap:["s2_1","s2_2"] },
+  { key:"s2_4", kicker:"2단계 (1차)", heading:"④ 그 결과 무엇이 달라졌나요",
+    desc:"나 / 친구 / 모둠 / 결과물 중에서.", field:"s2_4", pinPick:true, recap:["s2_1","s2_2","s2_3"] },
+  { key:"s2_5", kicker:"2단계 (1차)", heading:"⑤ 이 경험이 보여 주는 나의 모습은?",
+    field:"s2_5", special:"sentence5", pinPick:true, recap:["s2_1","s2_2","s2_3","s2_4"] },
+  { key:"s2_6", kicker:"2단계 (1차)", heading:"⑥ 그 뒤로 내가 새로 한 행동이나 습관이 있다면",
+    field:"s2_6", pinPick:true, recap:["s2_1","s2_2","s2_3","s2_4","s2_5"] },
+
+  { key:"check", kicker:"2차 쓰기 전", heading:"스스로 점검",
+    desc:"위에 쓴 답을 아래 기준으로 확인하고, 빠진 부분을 채워 넣으세요.", special:"checklist",
+    recap:["s2_1","s2_2","s2_3","s2_4","s2_5","s2_6"] },
+  { key:"s2_final", kicker:"2단계 (2차)", heading:"점검한 내용을 반영해, 처음부터 다시 씁니다",
+    desc:"아래 칸에는 ①~⑥을 이어 붙인 초안이 들어가 있어요. 눌러서 자유롭게 고쳐 하나의 이야기로 만드세요.",
+    field:"s2_final", special:"final2", recap:["s2_1","s2_2","s2_3","s2_4","s2_5","s2_6"] },
+
+  { key:"s3_1", kicker:"3단계 · 어려웠던 일 넘어서기", heading:"① 어떤 문제·어려움이었나요",
+    desc:"2단계와 다른 경험을 고릅니다. 잘 풀리지 않았던 일이면 좋습니다. 끝내 해결하지 못한 일도 그대로 쓰면 됩니다.", field:"s3_1" },
+  { key:"s3_2", kicker:"3단계", heading:"② 처음에 나는 어떻게 했나요 (솔직하게)", field:"s3_2", recap:["s3_1"] },
+  { key:"s3_3", kicker:"3단계", heading:"③ 방법을 어떻게 바꿨나요 / 누구에게 도움을 청했나요", field:"s3_3", recap:["s3_1","s3_2"] },
+  { key:"s3_4", kicker:"3단계", heading:"④ 결과는 어떻게 되었나요", field:"s3_4", recap:["s3_1","s3_2","s3_3"] },
+  { key:"s3_5", kicker:"3단계", heading:"⑤ 배운 점 / 비슷한 일이 또 생기면 하고 싶은 것", field:"s3_5", recap:["s3_1","s3_2","s3_3","s3_4"] },
+
+  { key:"s4_check", kicker:"4단계 · 나의 역량 스스로 진단", heading:"해당하는 항목에 모두 표시하세요",
+    desc:"새로운 경험을 쓰지 않아도 됩니다 — 1~3단계에서 쓴 경험과 연결만 합니다.", special:"capcheck" },
+  { key:"s4_link", kicker:"4단계", heading:"체크한 항목을 경험과 연결합니다",
+    desc:"각 역량에서 표시한 항목 중 대표 1개를 고르고, 위에서 쓴 경험과 연결하세요 (단계 번호 · 한 줄).", special:"caplink" },
+
+  { key:"s5", kicker:"5단계 · 친구에게서 본 것", heading:"친구가 실제로 무엇을 했는지 장면으로",
+    desc:"사실만 쓰고, 험담은 쓰지 않습니다. '착하다 · 재미있다'로 끝내지 말고, 그 친구가 실제로 무엇을 했는지를 씁니다. 평소 눈에 잘 띄지 않지만 도움이 되었던 친구도 좋습니다.", special:"friend" },
+
+  { key:"done" },
+];
+const STEP_COUNT = FLOW.filter(f=>f.key!=="notice" && f.key!=="done").length;
+
+/* ===== 교사 통제(접속 / 문제풀기 / 여기까지) ===== */
+function flowIdx(key){ return FLOW.findIndex(f=>f.key===key); }
+const CHECKPOINTS = [
+  { label:"제한 없음 (끝까지)", idx:-1 },
+  { label:"1단계까지",           idx:flowIdx("s1") },
+  { label:"2단계 ①~⑥까지",       idx:flowIdx("s2_6") },
+  { label:"자기점검까지",         idx:flowIdx("check") },
+  { label:"2차 쓰기까지",         idx:flowIdx("s2_final") },
+  { label:"3단계까지",           idx:flowIdx("s3_5") },
+  { label:"4단계까지",           idx:flowIdx("s4_link") },
+  { label:"5단계까지 (전체 완료)", idx:flowIdx("s5") },
+];
+const CONTROL_KEY = "exp-control-시안";
+const Control = {
+  state: { access:false, running:true, cap:-1 },   // 배포 기본값: 접속 닫힘 — 교사가 상단바 '접속'으로 열어야 학생 입장
+  _localRead(){ try{ const s=JSON.parse(localStorage.getItem(CONTROL_KEY)||"null"); if(s && typeof s==="object") this.state={access:!!s.access, running:!!s.running, cap:(s.cap==null?-1:+s.cap)}; }catch(e){} },
+  _localWrite(){ try{ localStorage.setItem(CONTROL_KEY, JSON.stringify(this.state)); }catch(e){} },
+  async pull(){
+    if(gasConfigured()){
+      try{
+        const r = await fetch(GAS_URL + "?action=controlStatus");
+        const d = await r.json();
+        if(d && typeof d==="object"){ this.state = { access:!!d.access, running:!!d.running, cap:(d.cap==null?-1:+d.cap) }; this._localWrite(); }
+      }catch(e){ /* 다음 주기에 재시도 */ }
+    } else {
+      this._localRead();
+    }
+    applyControlToStudent();
+    if(typeof paintControlTab === "function") paintControlTab();
+  },
+  async set(patch){
+    this.state = Object.assign({}, this.state, patch);
+    this._localWrite();
+    applyControlToStudent();
+    if(typeof paintControlTab === "function") paintControlTab();
+    if(gasConfigured()){
+      const c = this.state;
+      try{ await fetch(GAS_URL + "?action=setControl&access=" + (c.access?1:0) + "&running=" + (c.running?1:0) + "&cap=" + c.cap); }catch(e){}
+    }
+  },
+  capIndex(){ return (this.state.cap==null ? -1 : this.state.cap); },
+};
+function currentScreenId(){ const s=[...document.querySelectorAll("#app .screen")].find(x=>x.classList.contains("on")); return s?s.id:""; }
+function gateReason(){
+  if(!Control.state.running) return "선생님이 잠시 문제풀기를 멈췄어요. 조금만 기다려 주세요.";
+  const cap = Control.capIndex();
+  if(cap >= 0 && state.idx >= cap) return "여기까지 쓰고 선생님을 기다려요. (다음 구간은 선생님이 열어 줘요)";
+  return "";
+}
+function applyControlToStudent(){
+  const ov = document.getElementById("gate-overlay");
+  const tp = document.getElementById("teacher-panel");
+  const teacherOpen = tp && tp.classList.contains("on");
+  if(ov) ov.classList.toggle("hidden", teacherOpen || Control.state.access !== false);
+  const nextBtn = document.getElementById("st-next");
+  if(nextBtn){
+    const onStep = currentScreenId() === "screen-step";
+    const reason = gateReason();
+    nextBtn.disabled = !!(onStep && reason);
+    const nd = document.getElementById("st-nudge");
+    if(nd && onStep){
+      if(reason) nd.textContent = reason;
+      else if(nd.textContent && (nd.textContent.indexOf("기다려")>=0 || nd.textContent.indexOf("멈췄")>=0)) nd.textContent = "";
+    }
+  }
+}
+
+/* ===== 상태 ===== */
+const state = {
+  className:"", studentName:"", idx:0,
+  data:{},              // field id -> 값
+  caps:{ com:[], talk:[], lead:[], self:[] },  // 역량별 체크 목록
+};
+
+function fieldLabel(id){ const f = FIELDS.find(x=>x.id===id); return f ? f.header : id; }
+function answersArray(){ return FIELDS.map(f=> state.data[f.id] || ""); }
+
+const STAGES = ["1단계","2단계","2차","3단계","4단계","5단계"];
+function stageOf(idx){
+  const k = FLOW[idx] && FLOW[idx].key;
+  if(!k || k==="notice") return -1;
+  if(k==="s1") return 0;
+  if(k.indexOf("s2_")===0 && k!=="s2_final") return 1;
+  if(k==="check" || k==="s2_final") return 2;
+  if(k.indexOf("s3_")===0) return 3;
+  if(k==="s4_check" || k==="s4_link") return 4;
+  if(k==="s5") return 5;
+  if(k==="done") return 6;
+  return -1;
+}
+function showScreen(name){
+  document.querySelectorAll("#app .screen").forEach(el=>el.classList.remove("on"));
+  const el = document.getElementById("screen-"+name); if(el) el.classList.add("on");
+  const inFlow = (name==="step" || name==="notice");
+  document.getElementById("progress-row").style.display = inFlow ? "flex" : "none";
+  document.getElementById("stepper").style.display = (name==="step") ? "flex" : "none";
+  updateProgress();
+  renderStepper();
+}
+function renderStepper(){
+  const box = document.getElementById("stepper");
+  const cur = stageOf(state.idx);
+  box.innerHTML = STAGES.map((s,i)=>{
+    let cls = "st-chip";
+    if(i === cur) cls += " now";
+    else if(cur >= 0 && i < cur) cls += " done";
+    else if(cur === 6) cls += " done";
+    return '<span class="'+cls+'">'+s+'</span>';
+  }).join("");
+  // 현재 단계 칩이 보이도록 스크롤
+  const nowEl = box.querySelector(".st-chip.now");
+  if(nowEl) nowEl.scrollIntoView({inline:"center", block:"nearest"});
+}
+function updateProgress(){
+  const cur = FLOW[state.idx];
+  let done = 0;
+  for(let i=0;i<state.idx;i++){ if(FLOW[i].key!=="notice" && FLOW[i].key!=="done") done++; }
+  document.getElementById("progress-fill").style.width = Math.round(done/STEP_COUNT*100)+"%";
+  document.getElementById("progress-label").textContent = Math.min(done+ (cur && cur.key!=="notice" && cur.key!=="done"?1:0), STEP_COUNT) + " / " + STEP_COUNT;
+}
+
+/* ===== 인트로 ===== */
+const classSelect = document.getElementById("in-class");
+for(let i=1;i<=CLASS_COUNT;i++){ const o=document.createElement("option"); o.value=i+"반"; o.textContent=i+"반"; classSelect.appendChild(o); }
+function checkIntro(){
+  const ok = classSelect.value && document.getElementById("in-num").value.trim() && document.getElementById("in-name").value.trim();
+  document.getElementById("btn-start").disabled = !ok;
+}
+classSelect.addEventListener("change", checkIntro);
+document.getElementById("in-num").addEventListener("input", checkIntro);
+document.getElementById("in-name").addEventListener("input", checkIntro);
+
+document.getElementById("btn-start").addEventListener("click", async ()=>{
+  state.className = classSelect.value;
+  state.studentName = document.getElementById("in-num").value.trim() + " " + document.getElementById("in-name").value.trim();
+  const btn = document.getElementById("btn-start"); btn.disabled = true;
+  const prev = await fetchPreviousAnswers(state.className, sanitizeKey(state.studentName));
+  btn.disabled = false;
+  if(prev && prev.length){
+    FIELDS.forEach((f,i)=>{ if(prev[i]!==undefined && prev[i]!=="") state.data[f.id] = prev[i]; });
+    restoreCapsFromData();
+  }
+  state.idx = 0;               // notice 부터
+  goto(0);
+  reportProgress();
+});
+function restoreCapsFromData(){
+  CAPS.forEach(c=>{
+    const raw = state.data["s4_"+c.id] || "";
+    // "대표: A / 연결: B  · 체크: x, y" 형태에서 체크 목록 복원
+    const m = raw.match(/체크:\s*(.+)$/);
+    if(m) state.caps[c.id] = m[1].split(",").map(s=>s.trim()).filter(Boolean);
+    else {
+      const rep = (raw.match(/대표:\s*([^/·]+)/)||[])[1];
+      if(rep) state.caps[c.id] = [rep.trim()];
+    }
+  });
+}
+
+/* ===== 흐름 이동 ===== */
+function goto(i){
+  captureCurrent();
+  state.idx = Math.max(0, Math.min(FLOW.length-1, i));
+  const step = FLOW[state.idx];
+  if(step.key === "notice"){ showScreen("notice"); applyControlToStudent(); return; }
+  if(step.key === "done"){ showScreen("done"); reportProgress(); return; }
+  renderStep(step);
+  showScreen("step");
+  applyControlToStudent();
+}
+document.querySelectorAll("[data-next]").forEach(b=>b.addEventListener("click", ()=>{
+  const reason = gateReason();
+  if(reason){ nudgeGlobal(reason); return; }
+  if(!validateCurrent()) return;
+  captureCurrent();
+  reportProgress();
+  goto(state.idx+1);
+}));
+function nudgeGlobal(msg){
+  const nd = document.getElementById("st-nudge");
+  if(nd && currentScreenId()==="screen-step"){ nd.textContent = msg; return; }
+  let t = document.getElementById("gate-toast");
+  if(!t){ t=document.createElement("div"); t.id="gate-toast";
+    t.style.cssText="position:fixed;left:50%;bottom:64px;transform:translateX(-50%);background:var(--warn);color:#fff;font-size:12.5px;font-weight:700;padding:9px 14px;border-radius:999px;z-index:150;box-shadow:0 4px 14px rgba(0,0,0,.2)";
+    document.body.appendChild(t); }
+  t.textContent = msg; t.style.display="block";
+  clearTimeout(t._h); t._h=setTimeout(()=>{ t.style.display="none"; }, 2600);
+}
+document.querySelectorAll("[data-back]").forEach(b=>b.addEventListener("click", ()=>{ captureCurrent(); goto(state.idx-1); }));
+
+/* ===== 단계 렌더 ===== */
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function pickText(){ return state.data.s1_pick || ""; }
+
+function renderStep(step){
+  document.getElementById("st-kicker").textContent = step.kicker || "";
+  document.getElementById("st-heading").textContent = step.heading || "";
+  const descEl = document.getElementById("st-desc");
+  descEl.textContent = step.desc || ""; descEl.classList.toggle("hidden", !step.desc);
+  document.getElementById("st-nudge").textContent = "";
+
+  const pin = document.getElementById("st-pinned");
+  if(step.pinPick && pickText()){ pin.innerHTML = "고른 경험 &nbsp;<b>"+esc(pickText())+"</b>"; pin.classList.remove("hidden"); }
+  else pin.classList.add("hidden");
+
+  const recap = document.getElementById("st-recap");
+  if(step.recap && step.recap.length){
+    const items = step.recap.filter(id=>state.data[id]).map(id=>{
+      return '<div class="recap-item"><b>'+esc(shortLabel(id))+'</b>'+esc(state.data[id])+'</div>';
+    });
+    recap.innerHTML = '<div class="recap-h">내가 앞에서 쓴 내용</div>' + (items.join("") || '<div class="recap-item" style="color:var(--muted)">아직 없음</div>');
+    recap.classList.remove("hidden");
+  } else recap.classList.add("hidden");
+
+  const body = document.getElementById("st-body");
+  body.innerHTML = "";
+  if(step.key === "s1") body.appendChild(buildStep1());
+  else if(step.special === "sentence5") body.appendChild(buildSentence5(step));
+  else if(step.special === "checklist") body.appendChild(buildChecklist());
+  else if(step.special === "final2") body.appendChild(buildFinal2(step));
+  else if(step.special === "capcheck") body.appendChild(buildCapCheck());
+  else if(step.special === "caplink") body.appendChild(buildCapLink());
+  else if(step.special === "friend") body.appendChild(buildFriend());
+  else if(step.field) body.appendChild(buildTextarea(step.field));
+}
+function shortLabel(id){
+  const map = {
+    s2_1:"① ", s2_2:"② ", s2_3:"③ ", s2_4:"④ ", s2_5:"⑤ ", s2_6:"⑥ ",
+    s3_1:"① ", s3_2:"② ", s3_3:"③ ", s3_4:"④ ", s3_5:"⑤ ",
+  };
+  return map[id] || "";
+}
+function buildTextarea(fid){
+  const ta = document.createElement("textarea");
+  ta.id = "st-input"; ta.dataset.fid = fid;
+  ta.placeholder = "구체적으로 적어보세요";
+  ta.value = state.data[fid] || "";
+  return ta;
+}
+function buildStep1(){
+  const wrap = document.createElement("div"); wrap.className = "exp-list";
+  SITUATIONS.forEach((sit,i)=>{
+    const fid = "s1_m"+(i+1);
+    const item = document.createElement("div"); item.className = "exp-item";
+    item.innerHTML =
+      '<div class="exp-head">'
+      + '<div class="exp-sit">'+esc(sit)+'</div>'
+      + '<label class="pick"><input type="radio" name="s1pick" value="'+i+'"> 이걸로</label>'
+      + '</div>'
+      + '<textarea data-fid="'+fid+'" placeholder="한 줄 메모 (선택)">'+esc(state.data[fid]||"")+'</textarea>';
+    wrap.appendChild(item);
+  });
+  // 복원: 기존 pick
+  const pk = state.data.s1_pick || "";
+  SITUATIONS.forEach((sit,i)=>{
+    if(pk.indexOf(sit) === 0){ const r = wrap.querySelector('input[value="'+i+'"]'); if(r){ r.checked = true; r.closest(".exp-item").classList.add("sel"); } }
+  });
+  wrap.addEventListener("change", e=>{
+    if(e.target.name === "s1pick"){
+      wrap.querySelectorAll(".exp-item").forEach(x=>x.classList.remove("sel"));
+      e.target.closest(".exp-item").classList.add("sel");
+    }
+  });
+  return wrap;
+}
+function buildSentence5(step){
+  const d = document.createElement("div"); d.className = "sentence5";
+  const cur = state.data.s2_5 || "";
+  const inner = (cur.match(/나는\s*\(?\s*(.*?)\s*\)?\s*사람이다/) || [])[1] || cur;
+  d.innerHTML = '나는 (<input type="text" id="st-input" data-fid="s2_5" data-wrap="sentence5" value="'+esc(inner)+'" placeholder="예: 끝까지 파고드는">) 사람이다.';
+  return d;
+}
+function buildChecklist(){
+  const items = [
+    "언제·어디서·누구와가 모두 들어 있다",
+    "'열심히 · 최선을 다해' 대신, 실제로 한 행동이 적혀 있다",
+    "왜 했는지(계기·이유)가 드러난다",
+    "결과가 구체적이다 — 무엇이 어떻게 달라졌는지",
+    "그 뒤의 변화나 다음 계획이 있다",
+  ];
+  const box = document.createElement("div"); box.className = "checklist"; box.id = "st-checklist";
+  const checked = (state.data.s2_check || "").split("|").map(s=>s.trim());
+  items.forEach(t=>{
+    const l = document.createElement("label");
+    l.innerHTML = '<input type="checkbox" value="'+esc(t)+'" '+(checked.indexOf(t)>=0?"checked":"")+'><span>'+esc(t)+'</span>';
+    box.appendChild(l);
+  });
+  return box;
+}
+function buildFinal2(step){
+  const ta = document.createElement("textarea");
+  ta.id = "st-input"; ta.dataset.fid = "s2_final"; ta.style.minHeight = "220px";
+  const auto = stitchDraft();
+  const saved = state.data.s2_final || "";
+  // 학생이 아직 손대지 않은 초안이면(빈 값이거나 직전 자동 초안 그대로면)
+  // ①~⑥의 최신 내용으로 다시 이어 붙인다. 한 번이라도 고쳤으면 그대로 둔다.
+  if(!saved || saved === (state.data._s2_autostitch || "~NONE~")){
+    ta.value = auto;
+    state.data._s2_autostitch = auto;
+  } else {
+    ta.value = saved;
+  }
+  return ta;
+}
+function stitchDraft(){
+  const g = id => (state.data[id]||"").trim();
+  const persona = (g("s2_5").match(/나는\s*\(?\s*(.*?)\s*\)?\s*사람이다/)||[])[1] || g("s2_5");
+  const lead = (txt, con) => txt.startsWith(con) ? txt : (con + " " + txt);   // 접속어 중복 방지
+  const dot = txt => txt.replace(/[.]*$/,"") + ".";
+  let parts = [];
+  if(g("s2_1")) parts.push(dot(g("s2_1")));
+  if(g("s2_2")) parts.push(dot(lead(g("s2_2"), "그때 나는")));
+  if(g("s2_3")) parts.push(dot(g("s2_3")));
+  if(g("s2_4")) parts.push(dot(lead(g("s2_4"), "그 결과")));
+  if(persona) parts.push("이 경험은 내가 " + persona + " 사람이라는 것을 보여준다.");
+  if(g("s2_6")) parts.push(dot(lead(g("s2_6"), "그 뒤로")));
+  return parts.join(" ");
+}
+function buildCapCheck(){
+  const wrap = document.createElement("div");
+  CAPS.forEach(c=>{
+    const g = document.createElement("div"); g.className = "cap-group";
+    g.innerHTML = '<div class="cap-h">'+esc(c.name)+'</div>';
+    const opts = document.createElement("div"); opts.className = "cap-opts";
+    c.opts.forEach(o=>{
+      const b = document.createElement("button"); b.type = "button"; b.className = "cap-opt" + (state.caps[c.id].indexOf(o)>=0?" on":"");
+      b.textContent = o;
+      b.addEventListener("click", ()=>{
+        const arr = state.caps[c.id]; const k = arr.indexOf(o);
+        if(k>=0) arr.splice(k,1); else arr.push(o);
+        b.classList.toggle("on");
+      });
+      opts.appendChild(b);
+    });
+    g.appendChild(opts); wrap.appendChild(g);
+  });
+  return wrap;
+}
+function buildCapLink(){
+  const wrap = document.createElement("div");
+  CAPS.forEach(c=>{
+    const arr = state.caps[c.id];
+    const row = document.createElement("div"); row.className = "cap-link-row" + (arr.length?"":" empty");
+    row.dataset.cap = c.id;
+    let inner = '<div class="cap-link-h">'+esc(c.name)+'</div>';
+    if(!arr.length){
+      inner += '<div style="font-size:12px;color:var(--muted)">이 역량에서 표시한 항목이 없어요. (건너뛰어도 됩니다)</div>';
+    } else {
+      const prev = state.data["s4_"+c.id] || "";
+      const curRep = (prev.match(/대표:\s*([^/]+?)\s*(?:\/|·|$)/)||[])[1];
+      const curLink = (prev.match(/연결:\s*(.+?)\s*(?:·\s*체크:|$)/)||[])[1];
+      inner += '<select data-rep="'+c.id+'"><option value="">대표 항목 선택</option>' +
+        arr.map(o=>'<option '+(curRep && curRep.trim()===o?"selected":"")+'>'+esc(o)+'</option>').join("") + '</select>';
+      inner += '<input type="text" data-link="'+c.id+'" placeholder="연결되는 경험 (예: 2단계 — 모둠 발표 준비)" value="'+esc(curLink?curLink.trim():"")+'">';
+    }
+    row.innerHTML = inner; wrap.appendChild(row);
+  });
+  return wrap;
+}
+function buildFriend(){
+  const d = document.createElement("div");
+  d.innerHTML =
+    '<label class="field-label">친구 학번 · 이름</label>'
+    + '<div class="row3" style="gap:8px;">'
+    +   '<input type="text" data-fid="s5_num" placeholder="학번" inputmode="numeric" value="'+esc(state.data.s5_num||"")+'">'
+    +   '<input type="text" data-fid="s5_name" placeholder="이름" value="'+esc(state.data.s5_name||"")+'">'
+    + '</div>'
+    + '<label class="field-label">고마웠던 · 본받고 싶었던 구체적인 행동·장면 (언제, 무엇을 했는지)</label>'
+    + '<textarea data-fid="s5_act" placeholder="예: 지난주 청소 시간에 아무도 안 하던 칠판 정리를 먼저 맡아서…">'+esc(state.data.s5_act||"")+'</textarea>'
+    + '<label class="field-label">그 행동이 보여 주는 그 친구의 모습 (한 줄)</label>'
+    + '<input type="text" data-fid="s5_trait" placeholder="예: 티 안 나는 일을 먼저 챙기는" value="'+esc(state.data.s5_trait||"")+'">'
+    + '<label class="field-label">나도 해 보고 싶은 점</label>'
+    + '<textarea data-fid="s5_mine" placeholder="">'+esc(state.data.s5_mine||"")+'</textarea>';
+  return d;
+}
+
+/* ===== 값 캡처 / 검증 ===== */
+function captureCurrent(){
+  const step = FLOW[state.idx]; if(!step || step.key==="notice" || step.key==="done") return;
+  const body = document.getElementById("st-body");
+  // 일반 data-fid 입력들
+  body.querySelectorAll("[data-fid]").forEach(el=>{
+    let v = (el.value||"").trim();
+    if(el.dataset.wrap === "sentence5") v = v ? ("나는 ("+v+") 사람이다.") : "";
+    state.data[el.dataset.fid] = v;
+  });
+  // 1단계 pick
+  const picked = body.querySelector('input[name="s1pick"]:checked');
+  if(picked){
+    const i = +picked.value;
+    state.data.s1_pick = SITUATIONS[i] + (state.data["s1_m"+(i+1)] ? " — " + state.data["s1_m"+(i+1)] : "");
+  }
+  // 체크리스트
+  const cl = document.getElementById("st-checklist");
+  if(cl){
+    const arr = Array.from(cl.querySelectorAll("input:checked")).map(x=>x.value);
+    state.data.s2_check = arr.join(" | ");
+  }
+  // 역량 링크
+  body.querySelectorAll("[data-rep]").forEach(sel=>{
+    const cid = sel.dataset.rep;
+    const rep = sel.value.trim();
+    const linkEl = body.querySelector('[data-link="'+cid+'"]');
+    const link = linkEl ? linkEl.value.trim() : "";
+    const checks = state.caps[cid].join(", ");
+    if(rep || link) state.data["s4_"+cid] = "대표: " + rep + " / 연결: " + link + (checks?("  · 체크: "+checks):"");
+    else if(checks) state.data["s4_"+cid] = "체크: " + checks;
+  });
+}
+function nudge(msg){ document.getElementById("st-nudge").textContent = msg; }
+function validateCurrent(){
+  const step = FLOW[state.idx];
+  if(!step || step.key==="notice") return true;
+  const body = document.getElementById("st-body");
+
+  if(step.key === "s1"){
+    const picked = body.querySelector('input[name="s1pick"]:checked');
+    if(!picked){ nudge("자세히 쓸 경험 하나를 골라 주세요."); return false; }
+    const i = +picked.value;
+    const memo = (body.querySelector('[data-fid="s1_m'+(i+1)+'"]').value||"").trim();
+    if(!memo){ nudge("고른 경험의 메모를 한 줄이라도 써 주세요."); return false; }
+    return true;
+  }
+  if(step.special === "checklist") return true;           // 점검은 통과 제한 없음
+  if(step.special === "capcheck") return true;            // 체크는 0개도 허용
+  if(step.special === "caplink"){
+    // 체크한 역량이 있으면 그중 최소 1개는 연결하도록 가볍게 유도
+    const any = CAPS.some(c=>state.caps[c.id].length);
+    if(!any) return true;
+    const linked = body.querySelectorAll("[data-rep]");
+    let ok = false;
+    linked.forEach(sel=>{ if(sel.value.trim()) ok = true; });
+    if(!ok){ nudge("표시한 역량 중 하나는 대표 항목을 골라 연결해 주세요."); return false; }
+    return true;
+  }
+  if(step.special === "friend"){
+    const need = ["s5_name","s5_act"];
+    for(const fid of need){
+      const el = body.querySelector('[data-fid="'+fid+'"]');
+      if(!el || !el.value.trim()){ nudge("친구 이름과 '무엇을 했는지'는 꼭 써 주세요."); return false; }
+    }
+    return true;
+  }
+  if(step.special === "final2"){
+    const el = document.getElementById("st-input");
+    if(!el || el.value.trim().length < 30){ nudge("초안을 다듬어 30자 이상으로 완성해 주세요."); return false; }
+    return true;
+  }
+  if(step.field){
+    const el = document.getElementById("st-input");
+    if(!el || !el.value.trim()){ nudge("이 칸을 채워야 다음으로 넘어갈 수 있어요."); return false; }
+    return true;
+  }
+  return true;
+}
+
+/* ===== Apps Script 연동 ===== */
+function sanitizeKey(name){ return name.trim().slice(0,20).replace(/[\/\\'"\s]/g,"_"); }
+async function fetchPreviousAnswers(cls, key){
+  if(!gasConfigured() || !key) return null;
+  try{
+    const res = await fetch(GAS_URL + "?action=studentAnswers&class=" + encodeURIComponent(cls) + "&key=" + encodeURIComponent(key));
+    if(!res.ok) return null;
+    const data = await res.json();
+    return (data && Array.isArray(data.answers)) ? data.answers : null;
+  }catch(e){ return null; }
+}
+let resyncTimer = null, reportChain = Promise.resolve();
+function reportProgress(){ reportChain = reportChain.then(reportProgressInner).catch(()=>{}); return reportChain; }
+async function reportProgressInner(){
+  if(!state.studentName || !state.className || !gasConfigured()) return;
+  const payload = {
+    key: sanitizeKey(state.studentName), name: state.studentName, class: state.className,
+    headers: HEADERS, correctAnswers: CORRECT_ANSWERS, answers: answersArray(), updatedAt: Date.now(),
+  };
+  const body = JSON.stringify(payload);
+  const delays = [400,1000,2000];
+  for(let a=0;a<delays.length;a++){
+    try{
+      const res = await fetch(GAS_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body });
+      if(res.ok){ const j = await res.json().catch(()=>null); if(j && j.ok){ clearTimeout(resyncTimer); setConn("ok"); return; } }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r, delays[a]));
+  }
+  setConn("bad","저장에 실패했어요. 자동으로 다시 시도할게요.");
+  clearTimeout(resyncTimer); resyncTimer = setTimeout(reportProgress, 5000);
+}
+function setConn(kind){
+  const el = document.getElementById("conn-status");
+  el.classList.remove("conn-checking","conn-ok","conn-bad");
+  if(kind==="ok"){ el.classList.add("conn-ok"); el.innerHTML = "<i></i>연결됨"; }
+  else if(kind==="bad"){ el.classList.add("conn-bad"); el.innerHTML = "<i></i>연결 안 됨"; }
+  else { el.classList.add("conn-checking"); el.innerHTML = "<i></i>연결"; }
+}
+async function connTest(){
+  if(!gasConfigured()){ setConn("bad"); return; }
+  setConn("checking");
+  try{ const res = await fetch(GAS_URL); const d = await res.json(); setConn((d && typeof d==="object")?"ok":"bad"); }
+  catch(e){ setConn("bad"); }
+}
+function setNet(kind){
+  const el = document.getElementById("net-status");
+  el.classList.remove("conn-checking","conn-ok","conn-bad");
+  if(kind==="ok"){ el.classList.add("conn-ok"); el.innerHTML = "<i></i>인터넷"; }
+  else if(kind==="bad"){ el.classList.add("conn-bad"); el.innerHTML = "<i></i>인터넷 X"; }
+  else { el.classList.add("conn-checking"); el.innerHTML = "<i></i>인터넷"; }
+}
+async function netTest(){
+  try{ const res = await fetch("https://jsonplaceholder.typicode.com/todos/1"); const d = await res.json(); setNet(d && d.id ? "ok":"bad"); }
+  catch(e){ setNet("bad"); }
+}
+connTest(); netTest();
+showScreen("intro");
+Control.pull();
+setInterval(()=>Control.pull(), 4000);
+</script>
+
+<script>
+/* ===== 선생님 보기 ===== */
+let teacherUnlocked = false;
+const gateModal = document.getElementById("teacher-gate-modal");
+const teacherPanel = document.getElementById("teacher-panel");
+document.getElementById("btn-teacher-toggle").addEventListener("click", ()=>{ teacherUnlocked ? openTeacher() : openGate(); });
+function openGate(){ document.getElementById("teacher-gate-input").value=""; gateModal.classList.remove("hidden"); setTimeout(()=>document.getElementById("teacher-gate-input").focus(),50); }
+document.getElementById("teacher-gate-cancel").addEventListener("click", ()=>gateModal.classList.add("hidden"));
+document.getElementById("teacher-gate-confirm").addEventListener("click", tryGate);
+document.getElementById("teacher-gate-input").addEventListener("keydown", e=>{ if(e.key==="Enter") tryGate(); });
+function tryGate(){
+  if(document.getElementById("teacher-gate-input").value === TEACHER_PASSCODE){
+    teacherUnlocked = true; gateModal.classList.add("hidden"); openTeacher();
+  } else { document.getElementById("teacher-gate-input").value=""; document.getElementById("teacher-gate-input").placeholder="암호가 틀렸어요"; }
+}
+document.getElementById("btn-teacher-close").addEventListener("click", ()=>{ teacherPanel.classList.remove("on"); applyControlToStudent(); });
+document.getElementById("btn-teacher-close2").addEventListener("click", ()=>{ teacherPanel.classList.remove("on"); applyControlToStudent(); });
+function openTeacher(){
+  teacherPanel.classList.add("on");
+  document.getElementById("teacher-class-picker").classList.remove("hidden");
+  document.getElementById("teacher-main").classList.add("hidden");
+}
+const tcs = document.getElementById("teacher-class-select");
+for(let i=1;i<=CLASS_COUNT;i++){ const o=document.createElement("option"); o.value=i+"반"; o.textContent=i+"반"; tcs.appendChild(o); }
+let teacherClass = "";
+document.getElementById("btn-confirm-class").addEventListener("click", ()=>selectClass(tcs.value));
+function selectClass(cls){
+  teacherClass = cls;
+  document.getElementById("teacher-current-class").textContent = cls;
+  document.getElementById("teacher-class-picker").classList.add("hidden");
+  document.getElementById("teacher-main").classList.remove("hidden");
+  switchTab("progress"); renderDashboard(); Control.pull(); paintControlTab();
+}
+document.getElementById("btn-change-class").addEventListener("click", ()=>{
+  document.getElementById("teacher-main").classList.add("hidden");
+  document.getElementById("teacher-class-picker").classList.remove("hidden");
+});
+let teacherTab = "progress", tgIndex = 0, tgRevealed = false, latest = null;
+const TEACHER_TABS = ["progress","results","print"];
+function switchTab(t){
+  teacherTab = t;
+  TEACHER_TABS.forEach(x=>{
+    document.getElementById("tab-"+x).classList.toggle("active", t===x);
+    document.getElementById("view-"+x).classList.toggle("hidden", t!==x);
+  });
+  if(t==="results"){ tgRevealed = false; renderGroupView(); }
+  if(t==="print"){ renderPrintPicker(); }
+}
+TEACHER_TABS.forEach(x=> document.getElementById("tab-"+x).addEventListener("click", ()=>switchTab(x)));
+document.getElementById("btn-teacher-refresh").addEventListener("click", ()=>{ renderDashboard(); Control.pull(); });
+
+/* ===== 상단바 통제 버튼 (접속 / 문제풀기 / 여기까지) — 선생님 화면에서만 ===== */
+let accessConfirmArmed = false, accessConfirmTimer = null;
+let runConfirmArmed = false, runConfirmTimer = null;
+function capLabel(idx){
+  const c = CHECKPOINTS.find(x=>x.idx===idx);
+  if(c) return c.label;
+  if(idx<0) return "제한 없음";
+  const f = FLOW[idx]; return f ? ((f.kicker?f.kicker.split("·")[0].trim()+" ":"")+(f.heading||f.key)) : ("단계 "+idx);
+}
+function paintControlTab(){
+  const c = Control.state;
+  const a = document.getElementById("ctl-access");
+  if(a){
+    a.className = "btn gate-btn";
+    if(accessConfirmArmed){ a.classList.add("state-confirm"); a.textContent="정말 닫을까요? 다시 클릭"; }
+    else if(c.access){ a.classList.add("state-open"); a.textContent="🟢 접속 가능 (클릭하면 닫기)"; }
+    else { a.classList.add("state-closed"); a.textContent="🔴 접속 불가능 (클릭하면 열기)"; }
+  }
+  const r = document.getElementById("ctl-run");
+  if(r){
+    r.className = "btn ps-btn";
+    if(runConfirmArmed){ r.classList.add("state-confirm"); r.textContent="문제풀이 그만할까요?"; }
+    else if(!c.running){ r.classList.add("state-stopped"); r.textContent="문제풀기 그만!"; }
+    else { r.classList.add("state-running"); r.textContent="문제풀기 시작!"; }
+  }
+  const sel = document.getElementById("ctl-cap");
+  if(sel){
+    if(!sel.options.length) CHECKPOINTS.forEach(cp=>{ const o=document.createElement("option"); o.value=String(cp.idx); o.textContent="여기까지: "+cp.label; sel.appendChild(o); });
+    sel.value = String(c.cap);
+  }
+  const st = document.getElementById("ctl-status");
+  if(st) st.innerHTML = "학생 화면 상태 · 접속 <b>"+(c.access?"열림":"닫힘")+"</b> · 문제풀기 <b>"+(c.running?"진행":"중단")
+    +"</b> · 허용 <b>"+capLabel(c.cap)+"</b>";
+}
+(function bindControl(){
+  const a = document.getElementById("ctl-access");
+  a.addEventListener("click", ()=>{
+    if(!Control.state.access){ Control.set({ access:true }); return; }   // 열기는 한 번에
+    if(!accessConfirmArmed){
+      accessConfirmArmed = true; paintControlTab();
+      clearTimeout(accessConfirmTimer);
+      accessConfirmTimer = setTimeout(()=>{ accessConfirmArmed=false; paintControlTab(); }, 4000);
+      return;
+    }
+    clearTimeout(accessConfirmTimer); accessConfirmArmed = false;
+    Control.set({ access:false });
+  });
+  const r = document.getElementById("ctl-run");
+  r.addEventListener("click", ()=>{
+    if(!Control.state.running){ Control.set({ running:true }); return; }  // 시작은 한 번에
+    if(!runConfirmArmed){
+      runConfirmArmed = true; paintControlTab();
+      clearTimeout(runConfirmTimer);
+      runConfirmTimer = setTimeout(()=>{ runConfirmArmed=false; paintControlTab(); }, 4000);
+      return;
+    }
+    clearTimeout(runConfirmTimer); runConfirmArmed = false;
+    Control.set({ running:false });
+  });
+  document.getElementById("ctl-cap").addEventListener("change", (e)=> Control.set({ cap: parseInt(e.target.value,10) }));
+  document.getElementById("ctl-cap-next").addEventListener("click", ()=>{
+    const order = CHECKPOINTS.filter(cp=>cp.idx>=0).map(cp=>cp.idx).sort((x,y)=>x-y);
+    const cur = Control.state.cap;
+    const next = order.find(idx=> idx > (cur<0 ? -1 : cur));
+    Control.set({ cap: (next==null ? -1 : next) });
+  });
+})();
+
+function stuNum(name){ const m = String(name).match(/\d+/); return m ? parseInt(m[0],10) : Infinity; }
+async function fetchTeacher(){
+  if(!gasConfigured()) return null;
+  let err = null;
+  for(let i=0;i<2;i++){
+    try{ const res = await fetch(GAS_URL + "?class=" + encodeURIComponent(teacherClass)); return await res.json(); }
+    catch(e){ err = e; if(i===0) await new Promise(r=>setTimeout(r,600)); }
+  }
+  throw err;
+}
+function groupFieldIdx(gid){
+  const ids = [];
+  FIELDS.forEach((f,i)=>{ if(f.group===gid) ids.push(i); });
+  return ids;
+}
+function groupDone(ansArr, gid){
+  const idx = groupFieldIdx(gid).filter(i=> !FIELDS[i].optional);
+  return idx.length && idx.every(i=> String(ansArr[i]||"").trim() !== "");
+}
+const GROUP_STAGE = { g1:"1단계", g2:"2단계", g3:"2차 쓰기", g4:"3단계", g5:"4단계", g6:"5단계" };
+function studentStageLabel(ans){
+  let last = null;
+  FIELDS.forEach((f,i)=>{ if(String(ans[i]||"").trim()!=="") last = f.group; });
+  if(!last) return "시작 전";
+  if(GROUPS.every(g=>groupDone(ans,g.id))) return "완료";
+  return GROUP_STAGE[last] || "-";
+}
+async function renderDashboard(){
+  const btn = document.getElementById("btn-teacher-refresh");
+  btn.disabled = true; btn.textContent = "↻ 새로고침 중…";
+  const body = document.getElementById("teacher-progress-body");
+  const stamp = document.getElementById("teacher-last-updated");
+  if(!gasConfigured()){
+    body.innerHTML = '<div class="storage-warning">아직 구글 시트 연결 주소가 설정되지 않았어요. (배포 후 GAS_URL 입력 필요)</div>';
+    btn.disabled = false; btn.textContent = "↻ 새로고침"; return;
+  }
+  try{
+    const data = await fetchTeacher(); latest = data;
+    const rows = (data && data.rows) || [];
+    if(!rows.length){ body.innerHTML = '<div class="stu-empty">아직 접속한 학생이 없어요.</div>'; }
+    else {
+      const sorted = rows.slice().sort((a,b)=>stuNum(a.name)-stuNum(b.name));
+      body.innerHTML = sorted.map(r=>{
+        const ans = r.answers || [];
+        const doneGroups = GROUPS.filter(g=>groupDone(ans, g.id)).length;
+        const filled = ans.filter(v=>String(v).trim()!=="").length;
+        const pct = Math.round(doneGroups/GROUPS.length*100);
+        return '<div class="stu-row">'
+          + '<div class="stu-name">'+esc(String(r.name))+'</div>'
+          + '<div class="stu-stage">지금 '+esc(studentStageLabel(ans))+'</div>'
+          + '<div class="stu-progress-track"><div class="stu-progress-fill" style="width:'+pct+'%"></div></div>'
+          + '<div class="stu-count">'+doneGroups+' / '+GROUPS.length+' 단계</div>'
+          + '<div class="stu-items">'+filled+'개 항목</div>'
+          + '</div>';
+      }).join("");
+    }
+    stamp.textContent = "방금 갱신함"; stamp.classList.add("fresh");
+    if(teacherTab === "results") renderGroupView();
+  }catch(e){
+    body.innerHTML = '<div class="storage-warning">학생 목록을 불러오지 못했어요.<br><span style="font-family:monospace;font-size:10.5px;">'+esc(String(e && e.message || e))+'</span></div>';
+    stamp.textContent = "갱신 실패"; stamp.classList.remove("fresh");
+  }finally{ btn.disabled = false; btn.textContent = "↻ 새로고침"; }
+}
+
+document.getElementById("btn-tg-prev").addEventListener("click", ()=>{ if(tgIndex>0){ tgIndex--; tgRevealed=false; renderGroupView(); } });
+document.getElementById("btn-tg-next").addEventListener("click", ()=>{ if(tgIndex<GROUPS.length-1){ tgIndex++; tgRevealed=false; renderGroupView(); } });
+document.getElementById("btn-tg-reveal").addEventListener("click", ()=>{ tgRevealed = true; renderGroupView(); });
+
+function renderGroupView(){
+  const g = GROUPS[tgIndex];
+  document.getElementById("tg-count").textContent = (tgIndex+1)+" / "+GROUPS.length;
+  document.getElementById("btn-tg-prev").disabled = (tgIndex===0);
+  document.getElementById("btn-tg-next").disabled = (tgIndex===GROUPS.length-1);
+  document.getElementById("tg-title").textContent = g.title;
+  document.getElementById("tg-sub").textContent = g.sub;
+  document.getElementById("tg-reveal-gate").classList.toggle("hidden", tgRevealed);
+  document.getElementById("tg-result").classList.toggle("hidden", !tgRevealed);
+  if(!tgRevealed) return;
+
+  const rows = (latest && latest.rows) || [];
+  const idx = groupFieldIdx(g.id);
+  const cards = [];
+  rows.forEach(r=>{
+    const ans = r.answers || [];
+    const has = idx.some(i=>String(ans[i]||"").trim() !== "");
+    if(!has) return;
+    let html = "";
+    idx.forEach(i=>{
+      const v = String(ans[i]||"").trim();
+      html += '<div class="tf-q">'+esc(FIELDS[i].header)+'</div>';
+      html += '<div class="tf-a'+(v?"":" blank")+'">'+(v?esc(v):"(빈칸)")+'</div>';
+    });
+    cards.push(html);
+  });
+  document.getElementById("tg-resp-count").textContent = cards.length + "명 제출";
+  const list = document.getElementById("tg-list");
+  if(!cards.length){ list.innerHTML = '<div class="stu-empty">아직 이 단계에 쓴 학생이 없어요.</div>'; return; }
+  list.innerHTML = cards.map(h=>'<div class="ans-card" data-full="'+encodeURIComponent(h)+'">'+h+'</div>').join("");
+  list.querySelectorAll(".ans-card").forEach(c=>c.addEventListener("click", ()=>openSpotlight(decodeURIComponent(c.getAttribute("data-full")))));
+}
+function openSpotlight(html){
+  document.getElementById("spotlight-body").innerHTML = html;
+  const ov = document.getElementById("spotlight-overlay");
+  ov.classList.remove("hidden");
+  requestAnimationFrame(()=>requestAnimationFrame(()=>ov.classList.add("show")));
+}
+function closeSpotlight(){
+  const ov = document.getElementById("spotlight-overlay");
+  ov.classList.remove("show"); setTimeout(()=>ov.classList.add("hidden"), 320);
+}
+document.getElementById("spotlight-close").addEventListener("click", closeSpotlight);
+document.getElementById("spotlight-overlay").addEventListener("click", e=>{ if(e.target.id==="spotlight-overlay") closeSpotlight(); });
+
+/* ============================================================
+   인쇄 탭 — 학생별 양식 채워서 인쇄 (학생당 4쪽 = 양면 2장, 다음 학생과 안 섞임)
+============================================================ */
+function rowToData(row){ const d={}; FIELDS.forEach((f,i)=>{ d[f.id] = (row.answers||[])[i] || ""; }); return d; }
+function capParts(raw){
+  raw = raw || "";
+  const rep  = (raw.match(/대표:\s*([^/·]+?)(?:\s*[/·]|$)/) || [])[1] || "";
+  const link = (raw.match(/연결:\s*([^·]+?)(?:\s*·|$)/) || [])[1] || "";
+  return { rep: rep.trim(), link: link.trim() };
+}
+const PRINT_CHECK_ITEMS = [
+  "언제·어디서·누구와가 모두 들어 있다",
+  "'열심히 · 최선을 다해' 대신, 실제로 한 행동이 적혀 있다",
+  "왜 했는지(계기·이유)가 드러난다",
+  "결과가 구체적이다 — 무엇이 어떻게 달라졌는지",
+  "그 뒤의 변화나 다음 계획이 있다",
+];
+function capChecks(raw){
+  const m = (raw||"").match(/체크:\s*(.+)$/);
+  return m ? m[1].split(",").map(s=>s.trim()).filter(Boolean) : [];
+}
+function personaOf(s5){
+  return (String(s5||"").match(/나는\s*\(?\s*(.*?)\s*\)?\s*사람이다/) || [])[1] || "";
+}
+// 원본 양식 「나를 보여주는 경험쓰기(수정본)」 그대로 재현 — 학생 데이터를 빈칸에 채움
+function buildStudentFormHTML(name, d){
+  const g = id => esc(d[id] || "");
+  const num = (name.match(/^\s*(\S+)/)||[])[1] || "";
+  const nm  = name.replace(/^\s*\S+\s*/, "");
+  const CG = ws => '<colgroup>'+ws.map(w=>'<col style="width:'+w+'">').join("")+'</colgroup>';
+
+  const s1rows = SITUATIONS.map((sit,i)=>{
+    const picked = (d.s1_pick || "").indexOf(sit) === 0;
+    return '<tr><td class="sit">'+esc(sit)+'</td><td class="ans">'+g("s1_m"+(i+1))+'</td><td class="sel-mark">'+(picked?"○":"")+'</td></tr>';
+  }).join("");
+
+  const persona = personaOf(d.s2_5);
+  const s2rows =
+      '<tr><td class="q h-q">① 언제·어디서·누구와 있었던 일인가요</td><td class="ans">'+g("s2_1")+'</td></tr>'
+    + '<tr><td class="q h-q">② 나는 무엇을 했나요\n(‘…했다’로 끝나는 문장으로)</td><td class="ans">'+g("s2_2")+'</td></tr>'
+    + '<tr><td class="q h-q">③ 왜 그렇게 했나요\n그때 마음은 어땠나요</td><td class="ans">'+g("s2_3")+'</td></tr>'
+    + '<tr><td class="q h-q">④ 그 결과 무엇이 달라졌나요\n(나 / 친구 / 모둠 / 결과물)</td><td class="ans">'+g("s2_4")+'</td></tr>'
+    + '<tr><td class="q h-q">⑤ 이 경험이 보여 주는 나의 모습은?</td><td class="ans">→ “나는 ( '+(persona?('<b>'+esc(persona)+'</b>'):'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;')+' ) 사람이다.”</td></tr>'
+    + '<tr><td class="q h-q">⑥ 그 뒤로 내가 새로 한\n행동이나 습관이 있다면</td><td class="ans">'+g("s2_6")+'</td></tr>';
+
+  const checks = (d.s2_check || "").split("|").map(s=>s.trim());
+  const chkHtml = PRINT_CHECK_ITEMS.map(t=>'<div>'+(checks.indexOf(t)>=0 ? "☑" : "☐")+' '+esc(t)+'</div>').join("");
+
+  const s3rows =
+      '<tr><td class="q h-q">① 어떤 문제·어려움이었나요</td><td class="ans">'+g("s3_1")+'</td></tr>'
+    + '<tr><td class="q h-q">② 처음에 나는 어떻게 했나요\n(솔직하게)</td><td class="ans">'+g("s3_2")+'</td></tr>'
+    + '<tr><td class="q h-q">③ 방법을 어떻게 바꿨나요\n누구에게 도움을 청했나요</td><td class="ans">'+g("s3_3")+'</td></tr>'
+    + '<tr><td class="q h-q">④ 결과는 어떻게 되었나요</td><td class="ans">'+g("s3_4")+'</td></tr>'
+    + '<tr><td class="q h-q">⑤ 배운 점\n비슷한 일이 또 생기면 하고 싶은 것</td><td class="ans">'+g("s3_5")+'</td></tr>';
+
+  const capBlock = CAPS.map(c=>{
+    const chosen = capChecks(d["s4_"+c.id]);
+    const opts = c.opts.map(o=>'<span class="ci">'+(chosen.indexOf(o)>=0 ? "☑" : "☐")+' '+esc(o)+'</span>').join("");
+    return '<div class="cg">'+esc(c.name)+'</div><div>'+opts+'</div>';
+  }).join("");
+  const capRows = [["공동체","s4_com"],["소통","s4_talk"],["주도성·창의성","s4_lead"],["자기관리","s4_self"]].map(r=>{
+    const p = capParts(d[r[1]]);
+    return '<tr><td class="sit">'+r[0]+'</td><td class="ans">'+esc(p.rep)+'</td><td class="ans">'+esc(p.link)+'</td></tr>';
+  }).join("");
+
+  return (
+  '<div class="stu-form">'
+
+  + '<div class="pg" data-fkey="pg1">'
+  +   '<div class="doc-title">2학기 자기이해·성장 기록  「나를 보여주는 경험 쓰기」</div>'
+  +   '<div class="name-line">학번 ( <b>'+esc(num)+'</b> )  이름 ( <b>'+esc(nm)+'</b> )</div>'
+  +   '<div class="intro" data-fkey="intro">'
+  +     '<div>시작하기 전에_ 이 기록은 어디에 쓰일까요?</div>'
+  +     '<div>여기에 쓴 내용은 선생님이 생활기록부를 기록할 때 쓰는 바탕 자료입니다.</div>'
+  +     '<div>‘책임감이 있다’, ‘친구들과 잘 지낸다’ 같은 말만으로는 기록이 되지 않습니다.</div>'
+  +     '<div class="redb">언제·어디서·무엇을·어떻게 했는지가 담겨야 여러분의 모습이 드러납니다.</div>'
+  +     '<div class="k">&lt;쓰기 약속 세 가지&gt;</div>'
+  +     '<div>① 한 문장에 ‘누구와 · 무엇을 · 어떻게’가 들어가게 씁니다.</div>'
+  +     '<div>② 꾸며내지 않고, 실제로 있었던 일만 씁니다. 작은 일도 괜찮습니다.</div>'
+  +     '<div>③ 떠오르지 않으면, 올해 있었던 일 중 가장 또렷하게 기억나는 장면부터 씁니다.</div>'
+  +     '<div>※ 이 활동은 두 번에 걸쳐 합니다. 오늘은 1차로 쓰고, 스스로 점검한 뒤 2차에서 더 자세히 고쳐 씁니다.</div>'
+  +   '</div>'
+  +   '<div class="step-h">1단계. 경험 꺼내기</div>'
+  +   '<div class="step-lead">올해 있었던 일 중 아래 상황에 해당하는 장면을 한 줄씩 짧게 메모합니다. 모두 채우지 않아도 됩니다.</div>'
+  +   '<table class="f" data-fkey="tbl-1">'+CG(['30%','64.5%','5.5%'])+'<thead><tr><th>상황</th><th>내가 겪은 장면 — 한 줄 메모</th><th>선택</th></tr></thead><tbody>'+s1rows+'</tbody></table>'
+  +   '<div class="step-lead">이 중에서 가장 자세히 이야기할 수 있는 것 한 가지를 골라 ○표 하세요. → 2단계에서 사용합니다.</div>'
+  +   '<div class="step-h">2단계. 한 경험 자세히 쓰기 &lt;행동 확대경&gt;</div>'
+  +   '<div class="step-lead big">(1차)_1단계에서 ○표 한 경험 하나를 골라, 아래 표의 오른쪽 칸을 채웁니다.</div>'
+  +   '<table class="f" data-fkey="tbl-2">'+CG(['34%','66%'])+'<tbody>'+s2rows+'</tbody></table>'
+  + '</div>'
+
+  + '<div class="pg" data-fkey="pg2">'
+  +   '<div class="step-h">2차 쓰기 전 — 스스로 점검</div>'
+  +   '<div class="step-lead">위에 쓴 답을 아래 기준으로 확인하고, 빠진 부분을 채워 넣으세요.</div>'
+  +   '<div class="chk">'+chkHtml+'</div>'
+  +   '<div class="step-lead big">(2차)_점검한 내용을 반영해, 아래에 처음부터 다시 씁니다.</div>'
+  +   '<div class="big2-h">2차 — ①~⑥을 이어서 하나의 이야기로 씁니다</div>'
+  +   '<div class="big2-box" data-fkey="big2">'+g("s2_final")+'</div>'
+  +   '<div class="step-h">3단계. 어려웠던 일 넘어서기</div>'
+  +   '<div class="step-lead">2단계와 <b>다른 경험</b>을 고릅니다. 잘 풀리지 않았던 일이면 좋습니다. 끝내 해결하지 못한 일도 그대로 쓰면 됩니다.</div>'
+  +   '<table class="f" data-fkey="tbl-3">'+CG(['34%','66%'])+'<tbody>'+s3rows+'</tbody></table>'
+  + '</div>'
+
+  + '<div class="pg" data-fkey="pg3">'
+  +   '<div class="step-h">4단계. 나의 역량 스스로 진단</div>'
+  +   '<div class="step-lead">해당하는 항목에 모두 ✓ 표시하세요. 새로운 경험을 쓰지 않아도 됩니다 — 1~3단계에서 쓴 경험과 연결만 합니다.</div>'
+  +   '<div class="cap-cols">'+capBlock+'</div>'
+  +   '<div class="step-lead">각 역량에서 ✓한 항목 중 대표 1개를 골라, 위에서 쓴 경험과 연결합니다.</div>'
+  +   '<table class="f" data-fkey="tbl-4">'+CG(['15%','42%','43%'])+'<thead><tr><th>역량</th><th>내가 ✓한 대표 항목</th><th>연결되는 경험 (단계 번호 · 한 줄)</th></tr></thead><tbody>'+capRows+'</tbody></table>'
+  +   '<div class="step-h">5단계. 친구에게서 본 것<span class="paren">(사실만 쓰고, 험담은 쓰지 않습니다.)</span></div>'
+  +   '<div class="step-lead">‘착하다 · 재미있다’로 끝내지 말고, 그 친구가 <b>실제로 무엇을 했는지</b>를 장면으로 씁니다. 평소 눈에 잘 띄지 않지만 도움이 되었던 친구도 좋습니다.</div>'
+  +   '<table class="f" data-fkey="tbl-5">'+CG(['24%','76%'])+'<tbody>'
+  +     '<tr><td class="q center">학번 및 이름</td><td class="ans">학번: <b>'+g("s5_num")+'</b>  이름: <b>'+g("s5_name")+'</b></td></tr>'
+  +     '<tr><td class="q center">고마웠던 · 본받고 싶었던\n구체적인 행동·장면\n(언제, 무엇을 했는지)</td><td class="ans">'+g("s5_act")+'</td></tr>'
+  +     '<tr><td class="q center">그 행동이 보여 주는\n그 친구의 모습 (한 줄)</td><td class="ans">'+g("s5_trait")+'</td></tr>'
+  +     '<tr><td class="q center">나도 해 보고 싶은 점</td><td class="ans">'+g("s5_mine")+'</td></tr>'
+  +   '</tbody></table>'
+  + '</div>'
+
+  + '</div>'
+  );
+}
+function renderPrintPicker(){
+  const list = document.getElementById("print-stu-list");
+  const rows = (latest && latest.rows) ? latest.rows.slice().sort((a,b)=>stuNum(a.name)-stuNum(b.name)) : [];
+  list._rows = rows;
+  let html = '<label class="stu-check" style="border-style:dashed;">'
+    + '<input type="checkbox" data-preview="1"><span class="n">지금 내 화면 미리보기</span>'
+    + '<span style="font-size:11px;color:var(--muted)">(양식 확인용)</span></label>';
+  html += rows.map((r,i)=>'<label class="stu-check"><input type="checkbox" data-i="'+i+'"><span class="n">'+esc(r.name)+'</span></label>').join("");
+  if(!rows.length) html += '<div style="font-size:12px;color:var(--muted);padding:8px 4px;">불러온 학생이 없어요. 상단 "↻ 새로고침"을 먼저 누르세요.</div>';
+  list.innerHTML = html;
+  list.querySelectorAll("input").forEach(chk=>chk.addEventListener("change", updatePrintCount));
+  updatePrintCount();
+}
+function updatePrintCount(){
+  const n = document.querySelectorAll("#print-stu-list input:checked").length;
+  document.getElementById("pr-count").textContent = n + "명 선택";
+}
+document.getElementById("pr-all").addEventListener("click", ()=>{ document.querySelectorAll("#print-stu-list input").forEach(c=>c.checked=true); updatePrintCount(); });
+document.getElementById("pr-none").addEventListener("click", ()=>{ document.querySelectorAll("#print-stu-list input").forEach(c=>c.checked=false); updatePrintCount(); });
+document.getElementById("pr-go").addEventListener("click", ()=>{
+  const list = document.getElementById("print-stu-list");
+  const rows = list._rows || [];
+  const forms = [];
+  document.querySelectorAll("#print-stu-list input:checked").forEach(chk=>{
+    if(chk.dataset.preview){
+      const nm = (state.studentName || "0000 미리보기");
+      forms.push(buildStudentFormHTML(nm, Object.assign({}, state.data)));
+    } else {
+      const r = rows[+chk.dataset.i];
+      if(r) forms.push(buildStudentFormHTML(String(r.name), rowToData(r)));
+    }
+  });
+  if(!forms.length){ nudgeGlobal("인쇄할 학생을 먼저 선택하세요."); return; }
+  const pad = document.getElementById("pr-pad").checked ? '<div class="pg pg-pad"></div>' : '';
+  const root = document.getElementById("print-root");
+  // 각 .stu-form 은 문자열이 "…</div>" 로 끝난다. 그 앞에 빈 페이지를 끼워 학생당 짝수 쪽으로 맞춘다.
+  root.innerHTML = forms.map(f=> pad ? (f.replace(/<\/div>\s*$/, pad + "</div>")) : f).join("");
+  if(window.__applyFormEdits) window.__applyFormEdits();   // 양식 편집 내용을 인쇄본에도 반영
+  // 화면 밖에서 실제 인쇄 폭(180mm)으로 펼쳐 놓고, 넘치는 쪽만 자동으로 줄인다
+  root.style.cssText = "display:block; position:absolute; left:-10000px; top:0; width:180mm;";
+  fitFormPages(root);
+  root.style.cssText = "";
+  document.body.classList.add("printing");
+  const cleanup = ()=>{ document.body.classList.remove("printing"); root.innerHTML = ""; root.style.cssText=""; window.removeEventListener("afterprint", cleanup); };
+  window.addEventListener("afterprint", cleanup);
+  setTimeout(()=>{ window.print(); }, 80);
+});
+
+/* 각 쪽(.pg)을 A4 한 장에 딱 맞춘다.
+   - 내용이 많아 넘치면 → 그 쪽만 글자·여백 축소(.shrunk + font-size)
+   - 내용이 적어 남으면 → 답란(빈칸)을 늘려 한 장을 꽉 채운다 (화면에 빈칸이 차도록)
+   화면에서는 이어져 보이니 이 계산 없이는 인쇄 시 아래에 큰 여백이 생긴다. */
+function fitFormPages(container){
+  const PAGE_H = Math.round(269 * 96 / 25.4) - 12;   // A4 297mm - 위아래 여백 14mm ≈ 269mm
+  const GROW_SEL = "td.ans, .big2-box";
+  container.querySelectorAll(".stu-form").forEach(form=>{
+    form.querySelectorAll(".pg").forEach(pg=>{
+      if(pg.classList.contains("pg-pad")) return;
+      // 초기화
+      pg.classList.remove("shrunk"); pg.style.fontSize = "";
+      pg.querySelectorAll(GROW_SEL).forEach(el=>{ el.style.height=""; el.style.minHeight=""; });
+
+      // 1) 넘치면 축소
+      if(pg.scrollHeight > PAGE_H){
+        pg.classList.add("shrunk");
+        let fs = 10, guard = 0;
+        while(pg.scrollHeight > PAGE_H && fs > 6 && guard++ < 60){
+          fs -= 0.25; pg.style.fontSize = fs + "pt";
+        }
+      }
+
+      // 2) 남으면 답란을 늘려 한 장을 꽉 채운다
+      const grows = Array.prototype.slice.call(pg.querySelectorAll(GROW_SEL));
+      if(!grows.length) return;
+      for(let pass=0; pass<3; pass++){
+        const extra = (PAGE_H - 8) - pg.scrollHeight;
+        if(extra <= 12) break;
+        const share = extra / grows.length;
+        grows.forEach(el=>{
+          const cur = el.getBoundingClientRect().height;
+          const t = Math.round(cur + share);
+          if(el.tagName === "TD") el.style.height = t + "px";
+          else el.style.minHeight = t + "px";
+        });
+      }
+    });
+  });
+}
+
+/* 양식 편집 미리보기 */
+function renderFormEditPreview(){
+  const box = document.getElementById("form-edit-preview");
+  box.innerHTML = buildStudentFormHTML("(학번)  (이름)", {});
+  if(window.__applyFormEdits) window.__applyFormEdits();
+  // 빈 양식은 항상 한 장에 들어가므로 축소 계산은 하지 않는다.
+  // 실제 학생 분량에 맞춘 축소는 "선택 학생 인쇄"(pr-go)에서 180mm 폭으로 정확히 계산한다.
+}
+document.getElementById("btn-form-edit-preview").addEventListener("click", ()=>{
+  const box = document.getElementById("form-edit-preview");
+  const on = box.classList.toggle("on");
+  document.getElementById("btn-form-edit-preview").textContent = on ? "✎ 양식 편집 미리보기 닫기" : "✎ 양식 편집 미리보기 열기";
+  if(on) renderFormEditPreview();
+});
+</script>
+
+<script>
+/* ===== 교사 화면 전체화면 (PC 전용) ===== */
+(function(){
+  function inField(){ var a=document.activeElement; return a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); }
+  function isFs(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function label(){ var b=document.getElementById("btn-teacher-fs"); if(b) b.textContent = isFs()?"⛶ 해제":"⛶ 전체"; document.body.classList.toggle("teacher-fs", isFs()); }
+  function toggle(){
+    try{
+      if(isFs()){ (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else{ var el=document.documentElement; (el.requestFullscreen || el.webkitRequestFullscreen).call(el); }
+    }catch(e){}
+  }
+  document.addEventListener("fullscreenchange", label);
+  document.addEventListener("webkitfullscreenchange", label);
+  document.addEventListener("keydown", function(e){
+    if(inField()) return;
+    if(e.key==="f"||e.key==="F"||e.key==="ㄹ"){
+      var p=document.getElementById("teacher-panel");
+      if(p && p.classList.contains("on")){ e.preventDefault(); toggle(); }
+    }
+  });
+  var bar=document.querySelector(".teacher-topbar"), closeBtn=document.getElementById("btn-teacher-close2");
+  if(bar && closeBtn && !document.getElementById("btn-teacher-fs")){
+    var b=document.createElement("button");
+    b.id="btn-teacher-fs"; b.className="btn ghost"; b.type="button"; b.textContent="⛶ 전체";
+    b.addEventListener("click", toggle);
+    bar.insertBefore(b, closeBtn);
+  }
+  label();
+})();
+
+/* ===== 고치기 — 화면 슬라이드 + 인쇄 양식을 그 자리에서 수정, localStorage 보관 ===== */
+(function(){
+  var base=(location.pathname.split("/").pop()||"index");
+  try{ base=decodeURIComponent(base); }catch(e){}
+  var FILE_KEY="wcw-edit::"+base.replace(/\.html?$/i,"");
+
+  // 학생 화면(슬라이드) 편집존
+  var APP_SEL=["#app h1","#app h2","#app p","#app li","#app .desc","#app .recap-item","#app label.field-label","#app .step-kicker","#app #st-heading"];
+  // 인쇄 양식 편집존 — 학생이 채우는 칸(.ans / .name-line / .big2-box / .ci)은 제외
+  var FORM_SEL=[".formdoc .doc-title",".formdoc .step-h",".formdoc .step-lead",".formdoc .intro > div",
+    ".formdoc .chk > div",".formdoc table.f th",".formdoc table.f td.q",".formdoc td.sit",
+    ".formdoc .cap-cols .cg",".formdoc .big2-h"];
+  var EDIT_ZONE_SEL=APP_SEL.concat(FORM_SEL).join(",");
+
+  var editing=false, lastZone=null, undoStack=[];
+  function norm(s){ return String(s||"").replace(/\s+/g," ").trim(); }
+  function zonesAll(){ return Array.prototype.slice.call(document.querySelectorAll("[data-editz]")); }
+  function tagZones(){
+    document.querySelectorAll(EDIT_ZONE_SEL).forEach(function(el){
+      if(el.closest("#teacher-panel") && !el.closest("#form-edit-preview")) return; // 교사 UI는 제외(단 양식 미리보기는 허용)
+      if(el.querySelector(EDIT_ZONE_SEL)) return;
+      if(!el.hasAttribute("data-editz")){ el.setAttribute("data-editz","1"); if(editing) el.contentEditable="true"; }
+    });
+  }
+  function readStore(){ try{ return JSON.parse(localStorage.getItem(FILE_KEY)||"{}"); }catch(e){ return {}; } }
+  function writeStore(o){ try{ localStorage.setItem(FILE_KEY, JSON.stringify(o)); }catch(e){} }
+
+  function applyStore(){
+    var s=readStore(), edits=s.edits||{}, hidden=s.hidden||{}, fstyle=s.fstyle||{};
+    zonesAll().forEach(function(el){
+      var key=norm(el.getAttribute("data-orig")||el.textContent);
+      if(!el.hasAttribute("data-orig")) el.setAttribute("data-orig", key);
+      if(edits[key]!=null && el.innerHTML!==edits[key]) el.innerHTML=edits[key];
+      if(hidden[key]) el.setAttribute("data-edit-hidden","1");
+    });
+    // 표/장 스타일(글자 크기·칸 여백) 복원
+    Object.keys(fstyle).forEach(function(k){
+      var el=document.querySelector('[data-fkey="'+k+'"]'); if(!el) return;
+      var v=fstyle[k];
+      if(v.hidden) el.setAttribute("data-edit-hidden","1");
+      if(v.fontPx!=null){ el.dataset.fontPx=v.fontPx; el.style.fontSize=v.fontPx+"px"; }
+      else if(v.fontSize) el.style.fontSize=v.fontSize;
+      if(v.padPx!=null && el.tagName==="TABLE"){
+        el.dataset.padPx=v.padPx;
+        el.querySelectorAll("td,th").forEach(function(c){ c.style.paddingTop=v.padPx+"px"; c.style.paddingBottom=v.padPx+"px"; });
+      }
+      if(v.cols && el.tagName==="TABLE"){
+        var cg=el.querySelectorAll("colgroup col");
+        v.cols.forEach(function(w,i){ if(cg[i] && w) cg[i].style.width=w; });
+      }
+    });
+    mountColGrips();
+  }
+  function snapshot(){ undoStack.push(JSON.stringify(readStore())); if(undoStack.length>60) undoStack.shift(); }
+  function persist(){
+    var prev=readStore();
+    var s={edits:{},hidden:{},fstyle:(prev.fstyle||{}),savedAt:Date.now()};
+    zonesAll().forEach(function(el){
+      var key=norm(el.getAttribute("data-orig")||el.textContent);
+      if(el.hasAttribute("data-edit-hidden")){ s.hidden[key]=1; return; }
+      var orig=el.getAttribute("data-orig-html");
+      if(orig==null){ el.setAttribute("data-orig-html", el.innerHTML); orig=el.innerHTML; }
+      if(el.innerHTML!==orig) s.edits[key]=el.innerHTML;
+    });
+    // 감춰진 컨테이너(.pg 등)도 fkey로 기록
+    document.querySelectorAll("[data-fkey][data-edit-hidden]").forEach(function(el){
+      s.fstyle[el.getAttribute("data-fkey")] = Object.assign({}, s.fstyle[el.getAttribute("data-fkey")], {hidden:1});
+    });
+    writeStore(s);
+  }
+  function persistFStyle(el){
+    if(!el || !el.getAttribute("data-fkey")) return;
+    var s=readStore(); s.fstyle=s.fstyle||{};
+    var k=el.getAttribute("data-fkey");
+    var rec=s.fstyle[k]||{};
+    if(el.dataset.fontPx) rec.fontPx=parseFloat(el.dataset.fontPx);
+    else if(el.style.fontSize) rec.fontSize=el.style.fontSize;
+    if(el.dataset.padPx) rec.padPx=parseFloat(el.dataset.padPx);
+    s.fstyle[k]=rec; writeStore(s);
+  }
+
+  var mo=new MutationObserver(function(){ tagZones(); applyStore(); });
+  function observeTargets(){
+    ["app","print-root","form-edit-preview"].forEach(function(id){
+      var t=document.getElementById(id); if(t) mo.observe(t,{childList:true,subtree:true,characterData:true});
+    });
+  }
+  function setEditing(on){
+    editing=on;
+    document.body.classList.toggle("wcw-editing", on);
+    var fab=document.getElementById("edit-fab");
+    fab.classList.toggle("on", on);
+    fab.textContent = on ? "✎ 고치기 끄기" : "✎ 고치기";
+    document.getElementById("edit-toolbar").classList.toggle("hidden", !on);
+    tagZones();
+    zonesAll().forEach(function(el){ el.contentEditable = on ? "true" : "false"; });
+    if(on){ observeTargets(); mountColGrips(); }
+    else { mo.disconnect(); unmountColGrips(); persist(); }
+  }
+
+  /* 표 열 너비 드래그 손잡이 (양식 편집 미리보기 전용) */
+  function unmountColGrips(){
+    var pv=document.getElementById("form-edit-preview"); if(!pv) return;
+    pv.querySelectorAll(".col-grip").forEach(function(g){ g.remove(); });
+    pv.querySelectorAll("table.f").forEach(function(t){ t._grips=false; });
+  }
+  function mountColGrips(){
+    if(!editing) return;
+    var pv=document.getElementById("form-edit-preview"); if(!pv) return;
+    pv.querySelectorAll("table.f").forEach(function(t){
+      var cols=t.querySelectorAll("colgroup col");
+      if(!cols.length) return;
+      // 이미 손잡이가 있으면 위치만 재배치
+      if(t._grips){ relayoutGrips(t); return; }
+      var head=(t.tHead ? t.tHead.rows[0] : t.rows[0]);
+      if(!head) return;
+      for(var i=0;i<head.cells.length-1;i++){ addGrip(t, head, cols, i); }
+      t._grips=true;
+    });
+  }
+  function addGrip(t, head, cols, i){
+    var grip=document.createElement("div"); grip.className="col-grip";
+    t.appendChild(grip);
+    grip._place=function(){
+      var c=head.cells[i];
+      grip.style.left=(c.offsetLeft + c.offsetWidth)+"px";
+      grip.style.height=t.offsetHeight+"px";
+    };
+    grip._place();
+    grip.addEventListener("mousedown", function(e){
+      e.preventDefault();
+      var startX=e.clientX, tw=t.offsetWidth;
+      var wA=head.cells[i].offsetWidth, wB=head.cells[i+1].offsetWidth;
+      function mv(ev){
+        var dx=ev.clientX-startX;
+        var na=Math.max(28, wA+dx), nb=Math.max(28, wB-dx);
+        cols[i].style.width=(na/tw*100).toFixed(1)+"%";
+        cols[i+1].style.width=(nb/tw*100).toFixed(1)+"%";
+        relayoutGrips(t);
+      }
+      function up(){ document.removeEventListener("mousemove",mv); document.removeEventListener("mouseup",up); persistCols(t); }
+      document.addEventListener("mousemove",mv); document.addEventListener("mouseup",up);
+    });
+  }
+  function relayoutGrips(t){ t.querySelectorAll(".col-grip").forEach(function(g){ if(g._place) g._place(); }); }
+  function persistCols(t){
+    var k=t.getAttribute("data-fkey"); if(!k) return;
+    var cols=[].map.call(t.querySelectorAll("colgroup col"), function(c){ return c.style.width||""; });
+    var s=readStore(); s.fstyle=s.fstyle||{};
+    s.fstyle[k]=Object.assign({}, s.fstyle[k], {cols:cols});
+    writeStore(s);
+  }
+  function bumpCol(dir){
+    var cell=lastZone && lastZone.closest && lastZone.closest("td,th");
+    var t=(cell && cell.closest("table.f")) || tableOf();
+    if(!t) return;
+    var idx=cell ? cell.cellIndex : 0;
+    var cols=t.querySelectorAll("colgroup col");
+    if(idx>=cols.length-1) idx=cols.length-2;   // 마지막 열이면 직전 경계를 조정
+    if(idx<0) return;
+    snapshot();
+    var tw=t.offsetWidth;
+    var head=(t.tHead ? t.tHead.rows[0] : t.rows[0]);
+    var wA=head.cells[idx].offsetWidth + dir*10, wB=head.cells[idx+1].offsetWidth - dir*10;
+    cols[idx].style.width=(Math.max(28,wA)/tw*100).toFixed(1)+"%";
+    cols[idx+1].style.width=(Math.max(28,wB)/tw*100).toFixed(1)+"%";
+    relayoutGrips(t); persistCols(t);
+  }
+  function cmd(n,v){ document.execCommand(n,false,v); if(editing) persist(); }
+  function bumpFont(dir){
+    var sel=window.getSelection();
+    if(sel && !sel.isCollapsed && sel.rangeCount){
+      var sp=document.createElement("span"); sp.style.fontSize=(dir>0?"1.15em":"0.87em");
+      try{ sel.getRangeAt(0).surroundContents(sp); }catch(e){}
+    } else if(lastZone){
+      var cur=parseFloat(getComputedStyle(lastZone).fontSize)||15;
+      lastZone.style.fontSize=Math.max(8,cur+dir)+"px";
+    }
+    persist();
+  }
+  function tableOf(){
+    var t = lastZone && lastZone.closest && lastZone.closest("table.f");
+    if(!t){ var pv=document.getElementById("form-edit-preview"); t = pv && pv.querySelector("table.f"); }
+    return t;
+  }
+  function bumpTableFont(dir){
+    var t=tableOf(); if(!t) return; snapshot();
+    var cur=parseFloat(t.dataset.fontPx)||parseFloat(getComputedStyle(t).fontSize)||12;
+    var np=Math.max(7,cur+dir);
+    t.dataset.fontPx=np; t.style.fontSize=np+"px";
+    persistFStyle(t);
+  }
+  function bumpTablePad(dir){
+    var t=tableOf(); if(!t) return; snapshot();
+    var cur=parseFloat(t.dataset.padPx)||parseFloat(getComputedStyle(t.querySelector("td,th")).paddingTop)||6;
+    var np=Math.max(2,cur+dir*2);
+    t.dataset.padPx=np;
+    t.querySelectorAll("td,th").forEach(function(c){ c.style.paddingTop=np+"px"; c.style.paddingBottom=np+"px"; });
+    persistFStyle(t);
+  }
+  function hideEl(el){ if(!el) return; snapshot(); el.setAttribute("data-edit-hidden","1"); persist(); }
+  document.addEventListener("focusin", function(e){ var z=e.target.closest && e.target.closest("[data-editz]"); if(z) lastZone=z; });
+  function sep(){ var s=document.createElement("span"); s.className="sep"; return s; }
+  function pickImage(){
+    var inp=document.createElement("input"); inp.type="file"; inp.accept="image/*";
+    inp.addEventListener("change", function(){
+      var f=inp.files[0]; if(!f) return;
+      var r=new FileReader();
+      r.onload=function(){ snapshot();
+        var img='<img src="'+r.result+'" style="max-width:100%;border-radius:6px;margin:6px 0;">';
+        if(!document.execCommand("insertHTML",false,img) && lastZone) lastZone.insertAdjacentHTML("beforeend", img);
+        persist();
+      };
+      r.readAsDataURL(f);
+    });
+    inp.click();
+  }
+  function build(){
+    var fab=document.createElement("button"); fab.id="edit-fab"; fab.type="button"; fab.textContent="✎ 고치기";
+    fab.addEventListener("click", function(){ setEditing(!editing); });
+    document.body.appendChild(fab);
+    var bar=document.createElement("div"); bar.id="edit-toolbar"; bar.className="hidden";
+    var COLORS=[["검정","#141413"],["빨강","#c64545"],["파랑","#3b6fd4"],["초록","#3f9a4e"]];
+    function btn(t,fn,cls){ var b=document.createElement("button"); b.type="button"; b.textContent=t; if(cls) b.className=cls;
+      b.addEventListener("mousedown", function(ev){ ev.preventDefault(); }); b.addEventListener("click", fn); return b; }
+    bar.appendChild(btn("↶ 되돌리기", function(){ if(undoStack.length){ writeStore(JSON.parse(undoStack.pop())); location.reload(); } else cmd("undo"); }));
+    bar.appendChild(btn("↷ 다시", function(){ cmd("redo"); }));
+    bar.appendChild(sep());
+    bar.appendChild(btn("가+", function(){ bumpFont(1); }));
+    bar.appendChild(btn("가−", function(){ bumpFont(-1); }));
+    bar.appendChild(btn("굵게", function(){ cmd("bold"); }));
+    bar.appendChild(btn("밑줄", function(){ cmd("underline"); }));
+    bar.appendChild(btn("형광펜", function(){ if(!document.execCommand("hiliteColor",false,"#ffe58a")) cmd("backColor","#ffe58a"); persist(); }));
+    bar.appendChild(sep());
+    COLORS.forEach(function(c){ var b=btn("", function(){ cmd("foreColor", c[1]); }, "swatch"); b.style.background=c[1]; b.title=c[0]; bar.appendChild(b); });
+    bar.appendChild(sep());
+    bar.appendChild(btn("가운데", function(){ cmd("justifyCenter"); }));
+    bar.appendChild(sep());
+    bar.appendChild(btn("표 글자+", function(){ bumpTableFont(1); }));
+    bar.appendChild(btn("표 글자−", function(){ bumpTableFont(-1); }));
+    bar.appendChild(btn("행 높게", function(){ bumpTablePad(1); }));
+    bar.appendChild(btn("행 낮게", function(){ bumpTablePad(-1); }));
+    bar.appendChild(btn("이 열 넓게", function(){ bumpCol(1); }));
+    bar.appendChild(btn("이 열 좁게", function(){ bumpCol(-1); }));
+    bar.appendChild(sep());
+    bar.appendChild(btn("사진", pickImage));
+    bar.appendChild(sep());
+    bar.appendChild(btn("이 부분 지우기", function(){ hideEl(lastZone); }));
+    bar.appendChild(btn("이 장 지우기", function(){ hideEl(lastZone && (lastZone.closest(".pg") || lastZone.closest(".card") || lastZone.closest(".screen"))); }));
+    bar.appendChild(btn("전체 되돌리기", function(){
+      var b=this;
+      if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="정말요? 다시"; setTimeout(function(){ b.dataset.armed="0"; b.textContent="전체 되돌리기"; },3500); return; }
+      try{ localStorage.removeItem(FILE_KEY); }catch(e){} location.reload();
+    }));
+    document.body.appendChild(bar);
+  }
+  window.__applyFormEdits=function(){ tagZones(); applyStore(); };
+  window.addEventListener("resize", function(){
+    if(editing){ document.querySelectorAll("#form-edit-preview table.f").forEach(function(t){ relayoutGrips(t); }); }
+  });
+  if(document.readyState!=="loading") init(); else document.addEventListener("DOMContentLoaded", init);
+  function init(){ tagZones(); applyStore(); build(); }
+})();
+</script>
+</body>
+</html>
