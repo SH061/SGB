@@ -1263,12 +1263,17 @@ async function netTest(){
   try{ const res = await fetch("https://jsonplaceholder.typicode.com/todos/1"); const d = await res.json(); setNet(d && d.id ? "ok":"bad"); }
   catch(e){ setNet("bad"); }
 }
-connTest(); netTest();
+netTest();
 showScreen("intro");
-Control.pull();
-// 학생 화면만 5초마다 서버 상태를 따라간다. 교사(?t=1) 화면은 자동 폴링하지 않고
-// (산화와 환원 학습지와 동일) 반 선택·새로고침 때만 서버값을 읽어, 방금 누른 버튼이 폴링에 되돌려지지 않게 한다.
-if(!TEACHER_BYPASS) setInterval(()=>Control.pull(), 5000);
+// Apps Script는 같은 사용자 요청을 한 줄로 처리한다. 교사(?t=1) 화면은 학생 자료 조회가
+// 최우선이라, 연결 확인·통제상태 조회는 뒤로 미뤄 조회 요청이 그 뒤에 밀리지 않게 한다.
+if(TEACHER_BYPASS){
+  setTimeout(()=>{ connTest(); Control.pull(); }, 4000);
+} else {
+  connTest();
+  Control.pull();
+  setInterval(()=>Control.pull(), 5000);   // 학생 화면만 5초마다 서버 상태를 따라간다
+}
 /* ?t=1 교사 링크면 선생님 로그인 창을 바로 띄운다 (버튼 리스너는 다음 스크립트에서 붙으므로 지연 실행) */
 if(TEACHER_BYPASS) setTimeout(()=>{ const b=document.getElementById("btn-teacher-toggle"); if(b) b.click(); }, 0);
 </script>
@@ -1304,7 +1309,9 @@ function selectClass(cls){
   document.getElementById("teacher-current-class").textContent = cls;
   document.getElementById("teacher-class-picker").classList.add("hidden");
   document.getElementById("teacher-main").classList.remove("hidden");
-  switchTab("progress"); renderDashboard(); Control.pull(); paintControlTab();
+  switchTab("progress");
+  paintControlTab();                              // 있는 상태로 버튼 즉시 표시
+  renderDashboard().then(()=>{ Control.pull(); }); // 학생 자료를 먼저 받고, 그다음 통제 상태 조회
   startTeacherAutoRefresh();
 }
 document.getElementById("btn-change-class").addEventListener("click", ()=>{
