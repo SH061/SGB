@@ -582,10 +582,7 @@ const CLASS_COUNT = 10;
 /* 교사용 링크: 주소 뒤에 ?t=1 을 붙이면 접속 차단 오버레이를 건너뛰고
    선생님 로그인 창이 바로 뜬다. 학생에게는 ?t=1 없는 맨 주소만 공유한다.
    (?t, ?t=1 모두 인식) */
-/* ?demo=1 : 인쇄 양식이 A4를 넘치지 않는지 확인용. 긴 예시 답을 채운 뒤
-   교사 화면 인쇄 탭으로 바로 이동한다. (교사 링크처럼 취급) */
-const DEMO_MODE = new URLSearchParams(location.search).has("demo");
-const TEACHER_BYPASS = DEMO_MODE || new URLSearchParams(location.search).has("t");
+const TEACHER_BYPASS = new URLSearchParams(location.search).has("t");
 
 /* ===== 1단계 상황 목록 ===== */
 const SITUATIONS = [
@@ -1293,10 +1290,32 @@ function openGate(){ document.getElementById("teacher-gate-input").value=""; gat
 document.getElementById("teacher-gate-cancel").addEventListener("click", ()=>gateModal.classList.add("hidden"));
 document.getElementById("teacher-gate-confirm").addEventListener("click", tryGate);
 document.getElementById("teacher-gate-input").addEventListener("keydown", e=>{ if(e.key==="Enter") tryGate(); });
-function tryGate(){
-  if(document.getElementById("teacher-gate-input").value === TEACHER_PASSCODE){
-    teacherUnlocked = true; gateModal.classList.add("hidden"); openTeacher();
-  } else { document.getElementById("teacher-gate-input").value=""; document.getElementById("teacher-gate-input").placeholder="암호가 틀렸어요"; }
+let _gateBusy = false;
+async function tryGate(){
+  if(_gateBusy) return;
+  const inp = document.getElementById("teacher-gate-input");
+  const btn = document.getElementById("teacher-gate-confirm");
+  const val = String(inp.value).trim();
+  if(!val) return;
+  // 평소 암호는 구글 시트 "선생님암호" 시트 A2부터 한 줄에 하나씩 — 셀만 고치면 됨(재배포 불필요).
+  // 시트가 비었거나 서버를 못 읽으면 예비 암호 TEACHER_PASSCODE(기본 3699)로만 통과.
+  _gateBusy = true; btn.disabled = true; const _t = btn.textContent; btn.textContent = "확인 중…";
+  let ok = false;
+  try{
+    if(gasConfigured()){
+      try{
+        const res = await fetch(GAS_URL + "?action=teacherPasscodes&_=" + Date.now(), { cache:"no-store" });
+        const d = await res.json();
+        const list = (d && Array.isArray(d.list)) ? d.list.map(String) : [];
+        ok = list.length ? (list.indexOf(val) !== -1) : (val === TEACHER_PASSCODE);
+      }catch(e){ ok = (val === TEACHER_PASSCODE); }
+    } else {
+      ok = (val === TEACHER_PASSCODE);
+    }
+  }finally{ _gateBusy = false; btn.disabled = false; btn.textContent = _t; }
+  if(teacherUnlocked){ gateModal.classList.add("hidden"); return; }
+  if(ok){ teacherUnlocked = true; gateModal.classList.add("hidden"); openTeacher(); }
+  else { inp.value=""; inp.placeholder="암호가 틀렸어요"; }
 }
 function closeTeacher(){
   teacherPanel.classList.remove("on");
@@ -1659,7 +1678,10 @@ function renderPrintPicker(){
   list._rows = rows;
   let html = '<label class="stu-check" style="border-style:dashed;">'
     + '<input type="checkbox" data-preview="1"><span class="n">지금 내 화면 미리보기</span>'
-    + '<span style="font-size:11px;color:var(--muted)">(양식 확인용)</span></label>';
+    + '<span style="font-size:11px;color:var(--muted)">(양식 확인용)</span></label>'
+    + '<label class="stu-check" style="border-style:dashed;">'
+    + '<input type="checkbox" data-demo="1"><span class="n">예시 학생 (김서연)</span>'
+    + '<span style="font-size:11px;color:var(--muted)">(길게 쓴 예시 — A4 3쪽 넘침 확인용)</span></label>';
   html += rows.map((r,i)=>'<label class="stu-check"><input type="checkbox" data-i="'+i+'"><span class="n">'+esc(r.name)+'</span></label>').join("");
   if(!rows.length) html += '<div style="font-size:12px;color:var(--muted);padding:8px 4px;">불러온 학생이 없어요. 상단 "↻ 새로고침"을 먼저 누르세요.</div>';
   list.innerHTML = html;
@@ -1680,6 +1702,8 @@ document.getElementById("pr-go").addEventListener("click", ()=>{
     if(chk.dataset.preview){
       const nm = (state.studentName || "0000 미리보기");
       forms.push(buildStudentFormHTML(nm, Object.assign({}, state.data)));
+    } else if(chk.dataset.demo){
+      forms.push(buildStudentFormHTML("0000 김서연(예시)", Object.assign({}, DEMO_DATA)));
     } else {
       const r = rows[+chk.dataset.i];
       if(r) forms.push(buildStudentFormHTML(String(r.name), rowToData(r)));
@@ -1788,27 +1812,7 @@ const DEMO_DATA = {
   s5_trait:"티 나지 않는 뒷일을 먼저 챙기고, 아무도 하려 하지 않는 몫을 조용히 맡는 친구다.",
   s5_mine:"나는 눈에 띄는 역할을 주로 맡는데, 도윤이처럼 표 안 나는 준비나 뒷정리까지 먼저 살피는 태도를 배우고 싶다.",
 };
-if(DEMO_MODE){
-  Object.assign(state.data, DEMO_DATA);
-  state.className = "3반";
-  state.studentName = "10328 김서연(예시)";
-  if(typeof restoreCapsFromData === "function") restoreCapsFromData();
-  teacherUnlocked = true;
-  setTimeout(()=>{
-    openTeacher();
-    selectClass("3반");
-    switchTab("print");
-    setTimeout(()=>{
-      const chk = document.querySelector('#print-stu-list input[data-preview]');
-      if(chk){ chk.checked = true; if(typeof updatePrintCount === "function") updatePrintCount(); }
-      const hint = document.createElement("div");
-      hint.style.cssText = "max-width:640px;margin:10px auto;padding:10px 14px;border:1px solid var(--accent);border-radius:10px;background:var(--accent-dim);color:var(--accent-active);font-size:13px;font-weight:700;";
-      hint.textContent = "데모: 긴 예시 답이 채워져 있어요. 아래 [선택 학생 인쇄] → 인쇄 미리보기(Ctrl+P)로 3쪽 양식이 넘치지 않는지 확인하세요.";
-      const picker = document.querySelector("#view-print .print-picker");
-      if(picker && !document.getElementById("demo-hint")){ hint.id="demo-hint"; picker.insertBefore(hint, picker.firstChild); }
-    }, 400);
-  }, 0);
-}
+/* DEMO_DATA는 인쇄 탭의 "예시 학생(김서연)" 체크박스로 뽑는다 — renderPrintPicker/pr-go 참고. */
 </script>
 
 <script>
