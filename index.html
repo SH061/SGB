@@ -1288,8 +1288,8 @@ function tryGate(){
     teacherUnlocked = true; gateModal.classList.add("hidden"); openTeacher();
   } else { document.getElementById("teacher-gate-input").value=""; document.getElementById("teacher-gate-input").placeholder="암호가 틀렸어요"; }
 }
-document.getElementById("btn-teacher-close").addEventListener("click", ()=>{ teacherPanel.classList.remove("on"); applyControlToStudent(); });
-document.getElementById("btn-teacher-close2").addEventListener("click", ()=>{ teacherPanel.classList.remove("on"); applyControlToStudent(); });
+document.getElementById("btn-teacher-close").addEventListener("click", ()=>{ teacherPanel.classList.remove("on"); stopTeacherAutoRefresh(); applyControlToStudent(); });
+document.getElementById("btn-teacher-close2").addEventListener("click", ()=>{ teacherPanel.classList.remove("on"); stopTeacherAutoRefresh(); applyControlToStudent(); });
 function openTeacher(){
   teacherPanel.classList.add("on");
   document.getElementById("teacher-class-picker").classList.remove("hidden");
@@ -1305,8 +1305,10 @@ function selectClass(cls){
   document.getElementById("teacher-class-picker").classList.add("hidden");
   document.getElementById("teacher-main").classList.remove("hidden");
   switchTab("progress"); renderDashboard(); Control.pull(); paintControlTab();
+  startTeacherAutoRefresh();
 }
 document.getElementById("btn-change-class").addEventListener("click", ()=>{
+  stopTeacherAutoRefresh();
   document.getElementById("teacher-main").classList.add("hidden");
   document.getElementById("teacher-class-picker").classList.remove("hidden");
 });
@@ -1393,12 +1395,21 @@ function paintControlTab(){
 })();
 
 function stuNum(name){ const m = String(name).match(/\d+/); return m ? parseInt(m[0],10) : Infinity; }
+let _teacherFetching = false;
 async function fetchTeacher(){
   if(!gasConfigured()) return null;
   let err = null;
   for(let i=0;i<2;i++){
-    try{ const res = await fetch(GAS_URL + "?class=" + encodeURIComponent(teacherClass) + "&_=" + Date.now(), { cache:"no-store" }); return await res.json(); }
-    catch(e){ err = e; if(i===0) await new Promise(r=>setTimeout(r,600)); }
+    const ctrl = new AbortController();
+    const to = setTimeout(()=>ctrl.abort(), 20000);
+    try{
+      const res = await fetch(GAS_URL + "?class=" + encodeURIComponent(teacherClass) + "&_=" + Date.now(), { cache:"no-store", signal:ctrl.signal });
+      clearTimeout(to);
+      const ctype = res.headers.get("content-type") || "";
+      if(!res.ok || ctype.indexOf("json") < 0) throw new Error("서버 응답이 올바르지 않아요 (잠시 뒤 자동 재시도)");
+      return await res.json();
+    }
+    catch(e){ clearTimeout(to); err = e; if(i===0) await new Promise(r=>setTimeout(r,600)); }
   }
   throw err;
 }
@@ -1419,14 +1430,17 @@ function studentStageLabel(ans){
   if(GROUPS.every(g=>groupDone(ans,g.id))) return "완료";
   return GROUP_STAGE[last] || "-";
 }
-async function renderDashboard(){
+async function renderDashboard(quiet){
+  if(_teacherFetching) return;              // 이미 불러오는 중이면 중복 요청 안 함(자동 갱신 + 수동 겹침 방지)
+  _teacherFetching = true;
   const btn = document.getElementById("btn-teacher-refresh");
-  btn.disabled = true; btn.textContent = "↻ 새로고침 중…";
+  if(!quiet){ btn.disabled = true; btn.textContent = "↻ 새로고침 중…"; }
   const body = document.getElementById("teacher-progress-body");
   const stamp = document.getElementById("teacher-last-updated");
+  if(!body.children.length && !quiet) body.innerHTML = '<div class="stu-empty">학생 자료를 불러오는 중…</div>';
   if(!gasConfigured()){
     body.innerHTML = '<div class="storage-warning">아직 구글 시트 연결 주소가 설정되지 않았어요. (배포 후 GAS_URL 입력 필요)</div>';
-    btn.disabled = false; btn.textContent = "↻ 새로고침"; return;
+    btn.disabled = false; btn.textContent = "↻ 새로고침"; _teacherFetching = false; return;
   }
   try{
     const data = await fetchTeacher(); latest = data;
@@ -1453,8 +1467,19 @@ async function renderDashboard(){
   }catch(e){
     body.innerHTML = '<div class="storage-warning">학생 목록을 불러오지 못했어요.<br><span style="font-family:monospace;font-size:10.5px;">'+esc(String(e && e.message || e))+'</span></div>';
     stamp.textContent = "갱신 실패"; stamp.classList.remove("fresh");
-  }finally{ btn.disabled = false; btn.textContent = "↻ 새로고침"; }
+  }finally{ btn.disabled = false; btn.textContent = "↻ 새로고침"; _teacherFetching = false; }
 }
+
+/* 선생님 화면이 열려 있는 동안 학생 자료를 자동으로 갱신 (수동 새로고침 안 눌러도 최신 유지) */
+let _teacherAutoTimer = null;
+function startTeacherAutoRefresh(){
+  clearInterval(_teacherAutoTimer);
+  _teacherAutoTimer = setInterval(()=>{
+    const main = document.getElementById("teacher-main");
+    if(main && !main.classList.contains("hidden")) renderDashboard(true);
+  }, 7000);
+}
+function stopTeacherAutoRefresh(){ clearInterval(_teacherAutoTimer); _teacherAutoTimer = null; }
 
 document.getElementById("btn-tg-prev").addEventListener("click", ()=>{ if(tgIndex>0){ tgIndex--; tgRevealed=false; renderGroupView(); } });
 document.getElementById("btn-tg-next").addEventListener("click", ()=>{ if(tgIndex<GROUPS.length-1){ tgIndex++; tgRevealed=false; renderGroupView(); } });
