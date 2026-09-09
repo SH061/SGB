@@ -703,7 +703,7 @@ const Control = {
   async pull(){
     if(gasConfigured()){
       try{
-        const r = await fetch(GAS_URL + "?action=controlStatus");
+        const r = await fetch(GAS_URL + "?action=controlStatus&_=" + Date.now(), { cache:"no-store" });
         const d = await r.json();
         if(d && typeof d==="object"){ this.state = { access:!!d.access, running:!!d.running, cap:(d.cap==null?-1:+d.cap) }; this._localWrite(); }
       }catch(e){ /* 다음 주기에 재시도 */ }
@@ -720,7 +720,7 @@ const Control = {
     if(typeof paintControlTab === "function") paintControlTab();
     if(gasConfigured()){
       const c = this.state;
-      try{ await fetch(GAS_URL + "?action=setControl&access=" + (c.access?1:0) + "&running=" + (c.running?1:0) + "&cap=" + c.cap); }catch(e){}
+      try{ await fetch(GAS_URL + "?action=setControl&access=" + (c.access?1:0) + "&running=" + (c.running?1:0) + "&cap=" + c.cap + "&_=" + Date.now(), { cache:"no-store" }); }catch(e){}
     }
   },
   capIndex(){ return (this.state.cap==null ? -1 : this.state.cap); },
@@ -1145,7 +1145,7 @@ function sanitizeKey(name){ return name.trim().slice(0,20).replace(/[\/\\'"\s]/g
 async function fetchPreviousAnswers(cls, key){
   if(!gasConfigured() || !key) return null;
   try{
-    const res = await fetch(GAS_URL + "?action=studentAnswers&class=" + encodeURIComponent(cls) + "&key=" + encodeURIComponent(key));
+    const res = await fetch(GAS_URL + "?action=studentAnswers&class=" + encodeURIComponent(cls) + "&key=" + encodeURIComponent(key) + "&_=" + Date.now(), { cache:"no-store" });
     if(!res.ok) return null;
     const data = await res.json();
     return (data && Array.isArray(data.answers)) ? data.answers : null;
@@ -1181,7 +1181,7 @@ function setConn(kind){
 async function connTest(){
   if(!gasConfigured()){ setConn("bad"); return; }
   setConn("checking");
-  try{ const res = await fetch(GAS_URL); const d = await res.json(); setConn((d && typeof d==="object")?"ok":"bad"); }
+  try{ const res = await fetch(GAS_URL + "?_=" + Date.now(), { cache:"no-store" }); const d = await res.json(); setConn((d && typeof d==="object")?"ok":"bad"); }
   catch(e){ setConn("bad"); }
 }
 function setNet(kind){
@@ -1327,7 +1327,7 @@ async function fetchTeacher(){
   if(!gasConfigured()) return null;
   let err = null;
   for(let i=0;i<2;i++){
-    try{ const res = await fetch(GAS_URL + "?class=" + encodeURIComponent(teacherClass)); return await res.json(); }
+    try{ const res = await fetch(GAS_URL + "?class=" + encodeURIComponent(teacherClass) + "&_=" + Date.now(), { cache:"no-store" }); return await res.json(); }
     catch(e){ err = e; if(i===0) await new Promise(r=>setTimeout(r,600)); }
   }
   throw err;
