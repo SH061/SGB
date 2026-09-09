@@ -1276,8 +1276,8 @@ if(TEACHER_BYPASS){
   Control.pull();
   setInterval(()=>Control.pull(), 5000);   // 학생 화면만 5초마다 서버 상태를 따라간다
 }
-/* ?t=1 교사 링크면 선생님 로그인 창을 바로 띄운다 (버튼 리스너는 다음 스크립트에서 붙으므로 지연 실행) */
-if(TEACHER_BYPASS) setTimeout(()=>{ const b=document.getElementById("btn-teacher-toggle"); if(b) b.click(); }, 0);
+/* ?t=1 교사 링크는 접속 차단만 건너뛰고, 암호 입력은 자동으로 띄우지 않는다.
+   '선생님 보기'를 눌러야 암호를 묻는다. */
 </script>
 
 <script>
