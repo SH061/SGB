@@ -705,6 +705,8 @@ const Control = {
   _localRead(){ try{ const s=JSON.parse(localStorage.getItem(CONTROL_KEY)||"null"); if(s && typeof s==="object") this.state={access:!!s.access, running:!!s.running, cap:(s.cap==null?-1:+s.cap)}; }catch(e){} },
   _localWrite(){ try{ localStorage.setItem(CONTROL_KEY, JSON.stringify(this.state)); }catch(e){} },
   _pulling:false, _failStreak:0, _confirmed:false,   // _confirmed: 서버 응답을 한 번이라도 정상 수신했는지
+  _pendingState:null, _pendingUntil:0,               // 교사가 방금 바꾼 값 — 서버가 확인해 줄 때까지 폴링이 못 덮게
+  _same(a,b){ return a && b && a.access===b.access && a.running===b.running && a.cap===b.cap; },
   async pull(){
     if(gasConfigured()){
       if(this._pulling){ return; }         // 이전 요청이 아직 안 끝났으면 건너뛴다 (Apps Script는 응답이 느려 겹치면 과부하)
@@ -717,13 +719,21 @@ const Control = {
         if(!r.ok || ct.indexOf("json") < 0) throw new Error("bad response");
         const d = await r.json();
         if(d && typeof d==="object" && typeof d.access==="boolean"){
-          this.state = { access:!!d.access, running:!!d.running, cap:(d.cap==null?-1:+d.cap) };
+          const incoming = { access:!!d.access, running:!!d.running, cap:(d.cap==null?-1:+d.cap) };
+          const p = this._pendingState;
+          if(p && Date.now() < this._pendingUntil){
+            // 방금 교사가 바꾼 값 — 서버가 그 값을 돌려줄 때까지 폴링 결과로 덮지 않는다
+            if(this._same(p, incoming)){ this._pendingState = null; this._pendingUntil = 0; this.state = incoming; }
+          } else {
+            this._pendingState = null; this._pendingUntil = 0;
+            this.state = incoming;
+          }
           this._localWrite(); this._failStreak = 0; this._confirmed = true;
         } else throw new Error("unexpected shape");
       }catch(e){
         this._failStreak++;
-        // 상태를 여러 번 연속으로 확인하지 못하면(=닫혔는지 알 수 없음) 안전하게 정지시킨다.
-        if(this._failStreak >= 3) this.state = Object.assign({}, this.state, { access:false });
+        // 상태를 여러 번 연속으로 확인하지 못하면(=닫혔는지 알 수 없음) 안전하게 정지시킨다. (교사가 방금 조작 중이면 건드리지 않음)
+        if(this._failStreak >= 3 && !this._pendingState) this.state = Object.assign({}, this.state, { access:false });
       }finally{
         clearTimeout(to); this._pulling = false;
       }
@@ -735,12 +745,25 @@ const Control = {
   },
   async set(patch){
     this.state = Object.assign({}, this.state, patch);
+    this._pendingState = { access:!!this.state.access, running:!!this.state.running, cap:(this.state.cap==null?-1:+this.state.cap) };
+    this._pendingUntil = Date.now() + 30000;   // 최대 30초 동안 폴링이 이 값을 못 덮음
     this._localWrite();
     applyControlToStudent();
     if(typeof paintControlTab === "function") paintControlTab();
     if(gasConfigured()){
       const c = this.state;
-      try{ await fetch(GAS_URL + "?action=setControl&access=" + (c.access?1:0) + "&running=" + (c.running?1:0) + "&cap=" + c.cap + "&_=" + Date.now(), { cache:"no-store" }); }catch(e){}
+      try{
+        const r = await fetch(GAS_URL + "?action=setControl&access=" + (c.access?1:0) + "&running=" + (c.running?1:0) + "&cap=" + c.cap + "&_=" + Date.now(), { cache:"no-store" });
+        const d = await r.json().catch(()=>null);
+        if(d && typeof d.access === "boolean"){
+          const srv = { access:!!d.access, running:!!d.running, cap:(d.cap==null?-1:+d.cap) };
+          this.state = srv;
+          if(this._same(this._pendingState, srv)){ this._pendingState = null; this._pendingUntil = 0; }  // 서버가 확인해 줌 → pending 해제
+          this._localWrite();
+          applyControlToStudent();
+          if(typeof paintControlTab === "function") paintControlTab();
+        }
+      }catch(e){}
     }
   },
   capIndex(){ return (this.state.cap==null ? -1 : this.state.cap); },
