@@ -1354,8 +1354,9 @@ function selectClass(cls){
   document.getElementById("teacher-class-picker").classList.add("hidden");
   document.getElementById("teacher-main").classList.remove("hidden");
   switchTab("progress");
-  paintControlTab();                              // 있는 상태로 버튼 즉시 표시
-  renderDashboard().then(()=>{ Control.pull(); }); // 학생 자료를 먼저 받고, 그다음 통제 상태 조회
+  paintControlTab();                              // 캐시된 통제 상태로 버튼 즉시 표시
+  renderDashboard();                              // 학생 자료 조회 (통제상태는 class와 무관 — 여기서 또 요청하면 Apps Script 줄이 밀린다)
+  if(!Control._confirmed) Control.pull();         // 아직 서버 통제상태를 한 번도 못 받았을 때만 이때 받는다
 }
 document.getElementById("btn-change-class").addEventListener("click", ()=>{
   document.getElementById("teacher-main").classList.add("hidden");
@@ -1373,7 +1374,7 @@ function switchTab(t){
   if(t==="print"){ renderPrintPicker(); }
 }
 TEACHER_TABS.forEach(x=> document.getElementById("tab-"+x).addEventListener("click", ()=>switchTab(x)));
-document.getElementById("btn-teacher-refresh").addEventListener("click", ()=>{ renderDashboard(); Control.pull(); });
+document.getElementById("btn-teacher-refresh").addEventListener("click", ()=>{ renderDashboard().then(()=>Control.pull()).catch(()=>{}); });
 
 /* ===== 상단바 통제 버튼 (접속 / 문제풀기 / 여기까지) — 선생님 화면에서만 ===== */
 let accessConfirmArmed = false, accessConfirmTimer = null;
@@ -1446,15 +1447,20 @@ function paintControlTab(){
 function stuNum(name){ const m = String(name).match(/\d+/); return m ? parseInt(m[0],10) : Infinity; }
 async function fetchTeacher(){
   if(!gasConfigured()) return null;
-  let err = null;
-  for(let i=0;i<2;i++){
+  // Apps Script가 가끔 JSON 대신 HTML(로그인·권한·에러 페이지)을 돌려준다.
+  // res.json()에서 바로 터지지 않게 텍스트로 받아 확인하고, 안 되면 잠깐 쉬었다 3번까지 재시도한다.
+  const delays = [0, 800, 2000];
+  let lastErr = null;
+  for(let i=0;i<delays.length;i++){
+    if(delays[i]) await new Promise(r=>setTimeout(r, delays[i]));
     try{
       const res = await fetch(GAS_URL + "?class=" + encodeURIComponent(teacherClass) + "&_=" + Date.now(), { cache:"no-store" });
-      return await res.json();
-    }
-    catch(e){ err = e; if(i===0) await new Promise(r=>setTimeout(r,600)); }
+      const t = (await res.text()).trim();
+      if(t && (t[0] === "{" || t[0] === "[")) return JSON.parse(t);
+      lastErr = new Error("서버가 JSON이 아닌 응답을 보냈어요");
+    }catch(e){ lastErr = e; }
   }
-  throw err;
+  throw lastErr;
 }
 function groupFieldIdx(gid){
   const ids = [];
@@ -1473,18 +1479,25 @@ function studentStageLabel(ans){
   if(GROUPS.every(g=>groupDone(ans,g.id))) return "완료";
   return GROUP_STAGE[last] || "-";
 }
+let _dashSeq = 0, _dashRenderedClass = null;
 async function renderDashboard(){
+  const mySeq = ++_dashSeq;
   const btn = document.getElementById("btn-teacher-refresh");
   btn.disabled = true; btn.textContent = "↻ 새로고침 중…";
   const body = document.getElementById("teacher-progress-body");
   const stamp = document.getElementById("teacher-last-updated");
-  if(!body.children.length) body.innerHTML = '<div class="stu-empty">학생 자료를 불러오는 중…</div>';
+  // 반이 바뀌었으면 옛 목록을 지우고 "불러오는 중"을 보여준다 — 안 그러면 stale 목록이 그대로라 "안 바뀐다"고 느낀다.
+  if(_dashRenderedClass !== teacherClass || !body.children.length){
+    body.innerHTML = '<div class="stu-empty">학생 자료를 불러오는 중…</div>';
+  }
   if(!gasConfigured()){
     body.innerHTML = '<div class="storage-warning">아직 구글 시트 연결 주소가 설정되지 않았어요. (배포 후 GAS_URL 입력 필요)</div>';
     btn.disabled = false; btn.textContent = "↻ 새로고침"; return;
   }
   try{
-    const data = await fetchTeacher(); latest = data;
+    const data = await fetchTeacher();
+    if(mySeq !== _dashSeq) return;   // 그새 반이 또 바뀌었으면 이 (느린) 응답은 버린다
+    latest = data;
     const rows = (data && data.rows) || [];
     if(!rows.length){ body.innerHTML = '<div class="stu-empty">아직 접속한 학생이 없어요.</div>'; }
     else {
@@ -1503,12 +1516,18 @@ async function renderDashboard(){
           + '</div>';
       }).join("");
     }
+    _dashRenderedClass = teacherClass;
     stamp.textContent = "방금 갱신함"; stamp.classList.add("fresh");
     if(teacherTab === "results") renderGroupView();
   }catch(e){
-    body.innerHTML = '<div class="storage-warning">학생 목록을 불러오지 못했어요.<br><span style="font-family:monospace;font-size:10.5px;">'+esc(String(e && e.message || e))+'</span></div>';
+    if(mySeq !== _dashSeq) return;
+    const msg = String(e && e.message || e);
+    const hint = /JSON|token|<|DOCTYPE/i.test(msg)
+      ? "구글 시트 응답이 이상해요(로그인·권한 페이지일 수 있음). Apps Script 배포를 \"모든 사용자\" 접근으로 확인하고, 스크립트 권한 승인 후 잠시 뒤 다시 새로고침하세요."
+      : msg;
+    body.innerHTML = '<div class="storage-warning">학생 목록을 불러오지 못했어요.<br><span style="font-size:11px;line-height:1.6;">'+esc(hint)+'</span></div>';
     stamp.textContent = "갱신 실패"; stamp.classList.remove("fresh");
-  }finally{ btn.disabled = false; btn.textContent = "↻ 새로고침"; }
+  }finally{ if(mySeq === _dashSeq){ btn.disabled = false; btn.textContent = "↻ 새로고침"; } }
 }
 
 document.getElementById("btn-tg-prev").addEventListener("click", ()=>{ if(tgIndex>0){ tgIndex--; tgRevealed=false; renderGroupView(); } });
