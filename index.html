@@ -1296,7 +1296,14 @@ function setConn(kind){
 async function connTest(){
   if(!gasConfigured()){ setConn("bad"); return; }
   setConn("checking");
-  try{ const res = await fetch(GAS_URL + "?_=" + Date.now(), { cache:"no-store" }); const d = await res.json(); setConn((d && typeof d==="object")?"ok":"bad"); }
+  try{
+    const ctrl = new AbortController();
+    const to = setTimeout(()=>ctrl.abort(), 12000);
+    const res = await fetch(GAS_URL + "?_=" + Date.now(), { cache:"no-store", signal:ctrl.signal });
+    clearTimeout(to);
+    const d = await res.json();
+    setConn((d && typeof d==="object")?"ok":"bad");
+  }
   catch(e){ setConn("bad"); }
 }
 function setNet(kind){
@@ -1318,7 +1325,7 @@ applyControlToStudent();
 // Apps Script는 같은 사용자 요청을 한 줄로 처리한다. 교사(?t=1) 화면은 학생 자료 조회가
 // 최우선이라, 연결 확인·통제상태 조회는 뒤로 미뤄 조회 요청이 그 뒤에 밀리지 않게 한다.
 if(TEACHER_BYPASS){
-  setTimeout(()=>{ connTest(); Control.pull(); }, 4000);
+  setTimeout(()=>{ connTest(); Control.pull(); }, 1500);
 } else {
   connTest();
   Control.pull();
@@ -1345,14 +1352,21 @@ async function tryGate(){
   const btn = document.getElementById("teacher-gate-confirm");
   const val = String(inp.value).trim();
   if(!val) return;
-  // 평소 암호는 구글 시트 "선생님암호" 시트 A2부터 한 줄에 하나씩 — 셀만 고치면 됨(재배포 불필요).
-  // 시트가 비었거나 서버를 못 읽으면 예비 암호 TEACHER_PASSCODE(기본 3699)로만 통과.
+  // 예비 암호(기본 3699)면 서버 응답을 기다리지 않고 즉시 통과 — 구글 서버가 느리거나
+  // 멈춰도 선생님이 못 들어오는 일이 없게 한다.
+  if(val === TEACHER_PASSCODE){
+    teacherUnlocked = true; gateModal.classList.add("hidden"); openTeacher(); return;
+  }
+  // 그 외 암호는 구글 시트 "선생님암호" 시트(A2부터 한 줄에 하나)에서 확인. 셀만 고치면 됨.
   _gateBusy = true; btn.disabled = true; const _t = btn.textContent; btn.textContent = "확인 중…";
   let ok = false;
   try{
     if(gasConfigured()){
       try{
-        const res = await fetch(GAS_URL + "?action=teacherPasscodes&_=" + Date.now(), { cache:"no-store" });
+        const ctrl = new AbortController();
+        const to = setTimeout(()=>ctrl.abort(), 10000);   // 10초 넘게 멈추면 포기
+        const res = await fetch(GAS_URL + "?action=teacherPasscodes&_=" + Date.now(), { cache:"no-store", signal:ctrl.signal });
+        clearTimeout(to);
         const d = await res.json();
         const list = (d && Array.isArray(d.list)) ? d.list.map(String) : [];
         ok = list.length ? (list.indexOf(val) !== -1) : (val === TEACHER_PASSCODE);
