@@ -546,7 +546,7 @@
           <div id="form-edit-wrap">
             <div class="print-tools">
               <button class="btn ghost" id="btn-form-edit-preview">✎ 양식 편집 미리보기 열기</button>
-              <span class="class-label">— 왼쪽 위 [✎ 고치기]로 양식 문구·표를 고칩니다. 모든 학생 인쇄에 적용됩니다.</span>
+              <span class="class-label">— 위에서 학생/예시를 <b>하나만</b> 체크하면 그 내용으로 미리 보입니다. 왼쪽 위 [✎ 고치기]로 양식 문구·표를 고치면 모든 학생 인쇄에 적용됩니다.</span>
             </div>
             <div id="form-edit-preview" class="formdoc"></div>
           </div>
@@ -1754,8 +1754,29 @@ function renderPrintPicker(){
   html += rows.map((r,i)=>'<label class="stu-check"><input type="checkbox" data-i="'+i+'"><span class="n">'+esc(r.name)+'</span></label>').join("");
   if(!rows.length) html += '<div style="font-size:12px;color:var(--muted);padding:8px 4px;">불러온 학생이 없어요. 상단 "↻ 새로고침"을 먼저 누르세요.</div>';
   list.innerHTML = html;
-  list.querySelectorAll("input").forEach(chk=>chk.addEventListener("change", updatePrintCount));
+  list.querySelectorAll("input").forEach(chk=>chk.addEventListener("change", ()=>{
+    updatePrintCount();
+    // 한 명만 체크하면 아래 미리보기에 그 학생 양식을 채워 보여준다
+    const box = document.getElementById("form-edit-preview");
+    const one = document.querySelectorAll("#print-stu-list input:checked").length === 1;
+    if(one && !box.classList.contains("on")){
+      box.classList.add("on");
+      document.getElementById("btn-form-edit-preview").textContent = "✎ 양식 편집 미리보기 닫기";
+    }
+    if(box.classList.contains("on")) renderFormEditPreview();
+  }));
   updatePrintCount();
+}
+// 인쇄 목록에서 딱 한 명 체크돼 있으면 그 학생(또는 예시)의 채워진 양식을 반환
+function previewTargetForEdit(){
+  const checked = Array.from(document.querySelectorAll("#print-stu-list input:checked"));
+  if(checked.length !== 1) return null;
+  const chk = checked[0], list = document.getElementById("print-stu-list");
+  if(chk.dataset.preview) return { name:(state.studentName || "0000 미리보기"), d:Object.assign({}, state.data) };
+  if(chk.dataset.demo) return { name:"0000 김서연(예시)", d:Object.assign({}, DEMO_DATA) };
+  if(chk.dataset.demoset){ const dd = DEMO_SET[+chk.dataset.demoset]; return dd ? { name:"0000 "+dd.name+"(예시)", d:Object.assign({}, dd.data) } : null; }
+  const r = (list && list._rows || [])[+chk.dataset.i];
+  return r ? { name:String(r.name), d:rowToData(r) } : null;
 }
 function updatePrintCount(){
   const n = document.querySelectorAll("#print-stu-list input:checked").length;
@@ -1838,12 +1859,13 @@ function fitFormPages(container){
   });
 }
 
-/* 양식 편집 미리보기 */
+/* 양식 편집 미리보기 (인쇄 목록에서 한 명 체크했으면 그 학생 내용으로 채워 보여줌) */
 function renderFormEditPreview(){
   const box = document.getElementById("form-edit-preview");
-  box.innerHTML = buildStudentFormHTML("(학번)  (이름)", {});
+  const tgt = (typeof previewTargetForEdit === "function") ? previewTargetForEdit() : null;
+  box.innerHTML = tgt ? buildStudentFormHTML(tgt.name, tgt.d) : buildStudentFormHTML("(학번)  (이름)", {});
   if(window.__applyFormEdits) window.__applyFormEdits();
-  // 빈 양식은 항상 한 장에 들어가므로 축소 계산은 하지 않는다.
+  // 빈 양식/미리보기는 화면 확인용이므로 축소 계산은 하지 않는다.
   // 실제 학생 분량에 맞춘 축소는 "선택 학생 인쇄"(pr-go)에서 180mm 폭으로 정확히 계산한다.
 }
 document.getElementById("btn-form-edit-preview").addEventListener("click", ()=>{
