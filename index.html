@@ -1593,8 +1593,9 @@ function renderGroupView(){
     let html = "";
     idx.forEach(i=>{
       const v = String(ans[i]||"").trim();
+      if(!v) return;   // 학생이 안 쓴 항목은 아예 표시하지 않음
       html += '<div class="tf-q">'+esc(FIELDS[i].header)+'</div>';
-      html += '<div class="tf-a'+(v?"":" blank")+'">'+(v?esc(v):"(빈칸)")+'</div>';
+      html += '<div class="tf-a">'+esc(v)+'</div>';
     });
     cards.push(html);
   });
