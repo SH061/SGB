@@ -575,7 +575,7 @@
 
 <script>
 /* ===== 설정 ===== */
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwIQ7M47DHuOW3QKZPQD1zfMIlS26GqXqcVh9foVoSpE7cHBPcB5Os95S0697CoqnE/exec";
+const GAS_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
 function gasConfigured(){ return !!GAS_URL && GAS_URL.indexOf("PASTE_YOUR_") !== 0; }
 const TEACHER_PASSCODE = "3699";
 const CLASS_COUNT = 10;
@@ -703,12 +703,13 @@ const CHECKPOINTS = [
   { label:"4단계까지",           idx:flowIdx("s4_link") },
   { label:"5단계까지 (전체 완료)", idx:flowIdx("s5") },
 ];
-const CONTROL_KEY = "exp-control-시안";
+const CONTROL_KEY = "exp-control";
 const Control = {
   state: { access:false, running:true, cap:-1 },   // 배포 기본값: 접속 닫힘 — 교사가 상단바 '접속'으로 열어야 학생 입장
   _localRead(){ try{ const s=JSON.parse(localStorage.getItem(CONTROL_KEY)||"null"); if(s && typeof s==="object") this.state={access:!!s.access, running:!!s.running, cap:(s.cap==null?-1:+s.cap)}; }catch(e){} },
   _localWrite(){ try{ localStorage.setItem(CONTROL_KEY, JSON.stringify(this.state)); }catch(e){} },
   _pulling:false, _failStreak:0, _confirmed:false,   // _confirmed: 서버 응답을 한 번이라도 정상 수신했는지
+  _serverClosed:false,   // 서버가 명시적으로 access:false 를 돌려준 적이 있는지 — 이때만 구글로 튕긴다(일시 통신오류로는 안 튕김)
   _pendingState:null, _pendingUntil:0,               // 교사가 방금 바꾼 값 — 서버가 확인해 줄 때까지 폴링이 못 덮게
   _same(a,b){ return a && b && a.access===b.access && a.running===b.running && a.cap===b.cap; },
   async pull(){
@@ -732,11 +733,14 @@ const Control = {
             this._pendingState = null; this._pendingUntil = 0;
             this.state = incoming;
           }
+          // 서버가 정상적으로 access 값을 돌려줬을 때만 _serverClosed 를 갱신한다
+          if(!(p && Date.now() < this._pendingUntil)) this._serverClosed = (incoming.access === false);
           this._localWrite(); this._failStreak = 0; this._confirmed = true;
         } else throw new Error("unexpected shape");
       }catch(e){
         this._failStreak++;
-        // 상태를 여러 번 연속으로 확인하지 못하면(=닫혔는지 알 수 없음) 안전하게 정지시킨다. (교사가 방금 조작 중이면 건드리지 않음)
+        // 상태를 여러 번 연속으로 확인하지 못하면(=닫혔는지 알 수 없음) 화면을 잠근다(대기 오버레이 + '다음' 잠금).
+        // 단 _serverClosed 는 건드리지 않는다 → 일시적 통신 오류로는 구글로 튕기지 않고, 연결이 돌아오면 이어진다.
         if(this._failStreak >= 3 && !this._pendingState) this.state = Object.assign({}, this.state, { access:false });
       }finally{
         clearTimeout(to); this._pulling = false;
@@ -762,6 +766,7 @@ const Control = {
         if(d && typeof d.access === "boolean"){
           const srv = { access:!!d.access, running:!!d.running, cap:(d.cap==null?-1:+d.cap) };
           this.state = srv;
+          this._serverClosed = (srv.access === false); this._confirmed = true;
           if(this._same(this._pendingState, srv)){ this._pendingState = null; this._pendingUntil = 0; }  // 서버가 확인해 줌 → pending 해제
           this._localWrite();
           applyControlToStudent();
@@ -784,16 +789,18 @@ function applyControlToStudent(){
   const ov = document.getElementById("gate-overlay");
   const tp = document.getElementById("teacher-panel");
   const teacherOpen = tp && tp.classList.contains("on");
-  if(TEACHER_BYPASS){ if(ov) ov.classList.add("hidden"); return; }   // ?t 교사 링크는 통제 대상 아님
+  // 교사(=?t=1 링크 이거나, 학생용 링크로 암호를 통과한 사람)는 통제 대상이 아니다 — 절대 구글로 튕기지 않는다
+  const isTeacher = TEACHER_BYPASS || teacherOpen || (typeof teacherUnlocked !== "undefined" && teacherUnlocked);
+  if(isTeacher){ if(ov) ov.classList.add("hidden"); return; }
 
-  // 교사가 접속을 닫았고(서버에서 확인됨), 교사 화면도 아니면 → 구글로 튕긴다
-  if(!teacherOpen && Control._confirmed && Control.state.access === false && !_redirecting){
+  // 서버가 "접속 닫힘"을 명시적으로 돌려준 경우에만 구글로 튕긴다 (일시 통신오류·확인 전에는 안 튕김)
+  if(Control._serverClosed && !_redirecting){
     _redirecting = true;
     location.replace("https://www.google.com");
     return;
   }
   // 아직 서버 확인 전이거나 일시적 통신 오류면 튕기지 않고 대기 화면만 보여준다
-  if(ov) ov.classList.toggle("hidden", teacherOpen || Control.state.access !== false);
+  if(ov) ov.classList.toggle("hidden", Control.state.access !== false);
   const nextBtn = document.getElementById("st-next");
   if(nextBtn){
     const onStep = currentScreenId() === "screen-step";
@@ -1267,6 +1274,9 @@ async function netTest(){
 }
 netTest();
 showScreen("intro");
+// 서버 확인 전이라도 학생에게는 대기 오버레이를 먼저 씌운다(인트로를 만지작거리다 튕기는 일 방지).
+// ?t=1 교사 링크면 이 호출이 오버레이를 즉시 숨긴다.
+applyControlToStudent();
 // Apps Script는 같은 사용자 요청을 한 줄로 처리한다. 교사(?t=1) 화면은 학생 자료 조회가
 // 최우선이라, 연결 확인·통제상태 조회는 뒤로 미뤄 조회 요청이 그 뒤에 밀리지 않게 한다.
 if(TEACHER_BYPASS){
