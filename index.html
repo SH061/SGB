@@ -562,7 +562,7 @@
             · 기본은 원본 그대로 <b>3쪽</b>. 많이 쓴 쪽은 글자를 조금 줄여 3쪽에 맞춥니다.<br>
             · 글자를 줄여도 안 들어갈 만큼 긴 학생만 4쪽 이상이 되며, 이때는 한글처럼 <b>빈 공간 없이 이어서</b> 인쇄됩니다.<br>
             · 양면(장기 넘김) 인쇄 시 학생 사이가 섞이는 게 걱정되면 위 <b>빈 페이지 추가</b>를 켜세요. (분량이 홀수 쪽일 때만 빈 쪽을 넣어 짝수로 맞춥니다)<br>
-            · 인쇄 대화상자에서 여백 "기본" · 배율 100%로 두면 양식이 제대로 나옵니다.<br>
+            · 인쇄 대화상자는 여백 "기본" · 배율 100%를 권장합니다. 프린터 용지·배율이 달라도 자동으로 줄여 3쪽에 맞춥니다.<br>
             · 데이터가 안 보이면 상단 "↻ 새로고침"을 먼저 누르세요. (연결 전에는 "지금 내 화면 미리보기"만 가능)
           </div>
 
@@ -1880,6 +1880,22 @@ function updatePrintCount(){
 }
 document.getElementById("pr-all").addEventListener("click", ()=>{ document.querySelectorAll("#print-stu-list input").forEach(c=>c.checked=true); updatePrintCount(); });
 document.getElementById("pr-none").addEventListener("click", ()=>{ document.querySelectorAll("#print-stu-list input").forEach(c=>c.checked=false); updatePrintCount(); });
+/* 인쇄 배율·용지 자동 보정.
+   프린터 드라이버의 용지 크기가 A4와 다르거나 인쇄 창 배율이 100%가 아니면, 브라우저는 더 좁고
+   짧은 영역에 양식을 배치한 뒤 확대해서 출력한다. 그러면 글자가 커져 쪽마다 넘치고 3장이 6장이 된다.
+   인쇄할 때의 실제 배치 영역(가로·세로)을 @media print 조건으로 알아내서, 그만큼 #print-root 전체를
+   zoom으로 줄여 A4 100%와 똑같은 모양이 한 장에 들어가게 한다(4% 여유를 더 둔다 — 확대 출력 시 줄바꿈이 조금 달라짐). (보정이 필요 없으면 아무 규칙도 안 걸린다) */
+(function installPrintAutoFit(){
+  const W = 180, H = 269;     // A4 100%일 때 내용 영역(mm) — @page 여백 15mm·14mm 기준
+  let css = "";
+  for(let z = 0.99; z >= 0.40; z = Math.round((z - 0.01)*100)/100){
+    const mw = (W*(z+0.01) - 0.5).toFixed(1), mh = (H*(z+0.01) - 0.5).toFixed(1);
+    css += "@media print and (max-width:"+mw+"mm), print and (max-height:"+mh+"mm){ body.printing #print-root{ zoom:"+(z*0.96).toFixed(3)+"; } }\n";
+  }
+  const st = document.createElement("style"); st.id = "print-autofit"; st.textContent = css;
+  document.head.appendChild(st);
+})();
+
 document.getElementById("pr-go").addEventListener("click", ()=>{
   const list = document.getElementById("print-stu-list");
   const rows = list._rows || [];
