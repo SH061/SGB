@@ -366,7 +366,7 @@
   #edit-fab.on{ background:var(--accent); color:var(--on-accent); border-color:transparent; }
   /* 고치는 동안엔 접속 차단 오버레이가 위를 덮지 않게 — 파일을 그냥 열어서(오프라인·접속 닫힘 상태) 문구 수정 가능하도록 */
   body.wcw-editing #gate-overlay{ display:none !important; }
-  main#app > header.top .brand{ padding-left:76px; }
+  body.wcw-teacher main#app > header.top .brand, body.wcw-editing main#app > header.top .brand{ padding-left:76px; }
   #edit-fab{ font-size:11.5px; padding:7px 10px; }
   .teacher-topbar{ padding-left:78px; }
   body.wcw-editing [data-editz]{ outline:1px dashed rgba(204,120,92,.55); outline-offset:2px; border-radius:3px; cursor:text; }
