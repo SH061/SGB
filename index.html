@@ -128,6 +128,21 @@
   .cap-link-row input{ font-size:13.5px; }
   .cap-link-row.empty{ opacity:.55; }
 
+  /* 선생님 예시 (접힌 상자 — 보기 전용, 저장 안 됨) */
+  details.ex-box{ background:rgba(63,125,110,.07); border:1px dashed rgba(63,125,110,.32); border-radius:10px; margin:0 0 12px; }
+  details.ex-box summary{ cursor:pointer; list-style:none; font-size:12.5px; font-weight:700; color:#3f7d6e; padding:9px 11px; }
+  details.ex-box summary::-webkit-details-marker{ display:none; }
+  details.ex-box summary::before{ content:"💡 "; }
+  details.ex-box summary::after{ content:" ▾"; font-weight:400; }
+  details.ex-box[open] summary::after{ content:" ▴"; }
+  details.ex-box[open] summary{ border-bottom:1px dashed rgba(63,125,110,.32); }
+  details.ex-box .ex-body{ padding:9px 11px; font-size:12.5px; line-height:1.7; color:var(--text); }
+  details.ex-box .ex-body p{ margin:0 0 7px; } details.ex-box .ex-body p:last-child{ margin:0; }
+  details.ex-box .ex-body b{ color:#3f7d6e; }
+  .exp-head .ex-mini{ flex:0 0 auto; font-size:10.5px; font-weight:700; color:#3f7d6e; background:rgba(63,125,110,.07);
+    border:1px dashed rgba(63,125,110,.32); border-radius:999px; padding:2px 8px; cursor:pointer; font-family:inherit; }
+  .exp-item .ex-line{ font-size:12px; line-height:1.65; color:#3f7d6e; background:rgba(63,125,110,.07); border-radius:8px; padding:7px 9px; margin-top:7px; }
+
   .nudge{ font-size:12px; color:var(--warn); margin-top:8px; min-height:16px; text-align:center; }
 
   /* ---------- 교사 패널 ---------- */
@@ -238,6 +253,11 @@
     /* 각 쪽은 새 A4 앞면에서 시작 — 앞 쪽이 넘쳐도 다음 쪽은 깨끗한 새 장에서 시작한다 */
     .formdoc .pg{ page-break-before: always; }
     .formdoc .stu-form:first-child .pg:first-child{ page-break-before: auto; }
+    /* 3장에 안 들어가는 학생(.flow) — 한글처럼 쪽을 억지로 넘기지 않고 이어서 흐르게 한다.
+       (학생의 첫 쪽과 양면용 빈 페이지만 새 장에서 시작) */
+    .formdoc .stu-form.flow .pg:not(:first-child):not(.pg-pad){ page-break-before:auto; break-before:auto; }
+    .formdoc .stu-form.flow table.f tr{ page-break-inside:auto; break-inside:auto; }
+    .formdoc .stu-form.flow .step-h, .formdoc .stu-form.flow .step-lead, .formdoc .stu-form.flow .big2-h{ page-break-after:avoid; break-after:avoid; }
     /* ⚠️ 브라우저는 인쇄 시 배경색을 기본으로 지운다 — 셀 음영을 강제로 남긴다 */
     .formdoc, .formdoc *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
     .formdoc table.f thead th{ background:#dce6f1 !important; }
@@ -442,6 +462,7 @@
       <p class="desc" id="st-desc"></p>
       <div class="pinned hidden" id="st-pinned"></div>
       <div class="recap hidden" id="st-recap"></div>
+      <div id="st-example"></div>
       <div id="st-body"></div>
       <div class="nudge" id="st-nudge"></div>
       <div class="btnrow">
@@ -535,10 +556,12 @@
           </div>
           <div class="stu-check-list" id="print-stu-list"></div>
           <label class="stu-check" style="margin-top:8px;border-style:dashed;">
-            <input type="checkbox" id="pr-pad"><span>양면 인쇄용 빈 페이지 추가 <span style="font-size:11px;color:var(--muted)">(학생당 4쪽 — 뒷면에 다음 학생이 안 섞임)</span></span>
+            <input type="checkbox" id="pr-pad"><span>양면 인쇄용 빈 페이지 추가 <span style="font-size:11px;color:var(--muted)">(학생당 짝수 쪽 — 뒷면에 다음 학생이 안 섞임)</span></span>
           </label>
           <div class="print-hint">
-            · 기본은 원본 그대로 <b>3쪽</b>. 양면(장기 넘김) 인쇄 시 학생 사이가 섞이는 게 걱정되면 위 <b>빈 페이지 추가</b>를 켜세요.<br>
+            · 기본은 원본 그대로 <b>3쪽</b>. 많이 쓴 쪽은 글자를 조금 줄여 3쪽에 맞춥니다.<br>
+            · 글자를 줄여도 안 들어갈 만큼 긴 학생만 4쪽 이상이 되며, 이때는 한글처럼 <b>빈 공간 없이 이어서</b> 인쇄됩니다.<br>
+            · 양면(장기 넘김) 인쇄 시 학생 사이가 섞이는 게 걱정되면 위 <b>빈 페이지 추가</b>를 켜세요. (분량이 홀수 쪽일 때만 빈 쪽을 넣어 짝수로 맞춥니다)<br>
             · 인쇄 대화상자에서 여백 "기본" · 배율 100%로 두면 양식이 제대로 나옵니다.<br>
             · 데이터가 안 보이면 상단 "↻ 새로고침"을 먼저 누르세요. (연결 전에는 "지금 내 화면 미리보기"만 가능)
           </div>
@@ -593,6 +616,53 @@ const SITUATIONS = [
   "처음으로 해 본 일 · 도전한 일",
   "다툼이나 문제를 풀어 본 일",
 ];
+
+/* ===== 선생님 예시 (보기 전용 — 시트에 저장되지 않음) ===== */
+// 1단계: SITUATIONS 순서대로 한 줄 예시
+const EXAMPLE_S1 = [
+  "국어 시간에 말을 안 듣는 친구를 설득해서 모둠 활동에 참여하도록 했다.",
+  "지저분한 10반 교실에 청소 시간마다 들어가서, 내 구역이 아닌데도 매일 2분단 쓸기 청소를 했다.",
+  "청소 시간마다 도망가는 친구들을 다시 교실 안으로 데리고 들어오는 일은 매일 화가 나고 힘들었다. 하지만 더 힘드실 담임 선생님을 생각해서 매일 운동장에 나가 소리를 지르며 친구들을 교실 안으로 데리고 들어왔다.",
+  "청소 구역이 있는데도 청소를 하지 않고 도망가는 친구들 때문에 나 혼자만 청소하는 것 같아서 억울하고 짜증이 났다. 반장으로서 이러면 안 된다는 생각에 담임 선생님께 건의를 드렸다. 청소 구역을 '교실 쓸기'처럼 크게 나누지 않고 '1분단 쓸기'처럼 더 세분화하고, 자기 구역 청소를 마치면 선생님께 검사를 받는 방식으로 말이다.",
+  "모의고사 성적표는 나에게 큰 의미가 없었다. 그런데 어제 담임 선생님께서 한 시간 동안 모의고사를 보는 일의 중요성과, 미래를 예측할 수 있도록 현실을 뼈아프게 말씀해 주셨다. 재미없는 말이었지만 흘려 넘길 일도 아니어서 듣게 되었는데, 생각해 보니 나는 풀 수 있는 문제도 풀기 싫고 성적에도 안 들어간다는 생각에 잠만 푹 잤던 것 같았다. 그래서 10월 모의고사에서는 풀 수 있는 문제를 찾아서 풀어 보았다. 나머지는 기존에 했던 방식대로 찍었다. 그런데 9월 모의고사에 비해 10월 모의고사 등급이 모두 2등급 이상씩 올라 있어서 신기했다. 나는 원래 7등급이 아니었던 것이다. 10월 모의고사 성적표를 받고 오랜만에 설렜다.",
+  "우리 반에 학교생활에 적응하기 힘들어하는 친구가 있었다. 걸핏하면 수업 시간에 엎드려 있고 선생님께 대들기도 했다. 윽박도 질러 보고 설득도 해 보았지만 도통 말이 통하지 않았다. 그러다 어느 날 꿈에 대한 이야기를 나눌 기회가 생겼다. 말을 하지 않을 것 같고 생각이 없어 보였던 그 친구도 자기 꿈을 진지하게 이야기했고, 그 뒤로 조금씩 대화를 나누게 되었다.",
+];
+// 2단계 이후: FLOW key → 예시 상자 { title, html }
+const EXAMPLES = {
+  s2_1: { title:"예시 보기 — 10월 모의고사 이야기",
+    html:"<p>10월 모의고사를 앞두고, 우리 반 교실에서 담임 선생님께서 한 시간 동안 모의고사를 보는 일의 중요성을 말씀해 주셨다. 미래를 예측할 수 있도록 현실을 뼈아프게 짚어 주신 이야기였다. 그 뒤에 본 10월 모의고사에서 있었던 일이다.</p>" },
+  s2_2: { title:"예시 보기",
+    html:"<p>전에는 모의고사 때 풀 수 있는 문제도 풀지 않고 잠을 잤다. 10월 모의고사에서는 시험지에서 내가 풀 수 있는 문제를 찾아서 끝까지 풀었다. 나머지 문제는 기존에 했던 방식대로 찍었다.</p>" },
+  s2_3: { title:"예시 보기",
+    html:"<p>선생님 말씀이 재미는 없었지만 흘려 넘길 일은 아니어서 귀 기울여 들었다. 생각해 보니 나는 풀 수 있는 문제도 풀기 싫고, 성적에도 안 들어간다는 생각에 잠만 푹 잤던 것 같았다. 이번에는 한 번 제대로 해 보고 싶었다.</p>" },
+  s2_4: { title:"예시 보기",
+    html:"<p>9월 모의고사에 비해 10월 모의고사 등급이 모든 과목에서 2등급 이상씩 올라 있어서 신기했다. 나는 원래 7등급이 아니었던 것이다. 오랜만에 성적표를 받고 설렜다.</p>" },
+  s2_5: { title:"예시 보기",
+    html:"<p>나는 ( <b>들은 말을 흘려 넘기지 않고 직접 해 보는</b> ) 사람이다.</p>" },
+  s2_6: { title:"예시 보기",
+    html:"<p>그 뒤로 시험을 볼 때는 먼저 시험지를 한 번 훑어보고, 풀 수 있는 문제에 표시한 뒤 그 문제부터 푼다.</p>" },
+  s2_final: { title:"예시 보기 — ①~⑥을 이어 쓴 하나의 이야기",
+    html:"<p>10월 모의고사를 앞두고 담임 선생님께서 한 시간 동안 모의고사를 보는 일의 중요성을 말씀해 주셨다. 그전까지 나는 모의고사 때 풀 수 있는 문제도 풀지 않고 잠을 잤다. 선생님 말씀이 재미는 없었지만 흘려 넘길 일은 아니었고, 생각해 보니 성적에도 안 들어간다는 생각에 풀기 싫어서 잠만 잤던 것 같았다. 그래서 10월 모의고사에서는 풀 수 있는 문제를 찾아서 끝까지 풀었고, 나머지는 기존 방식대로 찍었다. 그 결과 9월보다 모든 과목 등급이 2등급 이상씩 올랐다. 나는 원래 7등급이 아니었던 것이다. 오랜만에 성적표를 받고 설렜다. 이 경험은 내가 들은 말을 흘려 넘기지 않고 직접 해 보는 사람이라는 것을 보여 준다. 그 뒤로 나는 시험을 볼 때 먼저 시험지를 훑어보고 풀 수 있는 문제부터 표시해서 푼다.</p>" },
+  s3_1: { title:"예시 보기 — 청소 구역 바꾸기 이야기",
+    html:"<p>청소 구역이 정해져 있는데도 청소를 하지 않고 도망가는 친구들 때문에, 반장인 나 혼자만 청소하는 것 같아 억울하고 짜증이 났다.</p>" },
+  s3_2: { title:"예시 보기",
+    html:"<p>처음에는 청소 시간마다 운동장까지 나가 소리를 지르며 도망간 친구들을 교실 안으로 데리고 들어왔다. 매일 화가 나고 힘들었다.</p>" },
+  s3_3: { title:"예시 보기",
+    html:"<p>반장으로서 이러면 안 된다는 생각에 담임 선생님께 건의를 드렸다. 청소 구역을 '교실 쓸기'처럼 크게 나누지 않고 '1분단 쓸기'처럼 더 세분화하고, 자기 구역 청소를 마치면 선생님께 검사를 받는 방식으로 바꾸자고 했다.</p>" },
+  s3_4: { title:"예시 보기",
+    html:"<p>자기가 맡은 구역이 분명해지자 도망가는 친구가 줄었고, 검사를 받아야 하니 대충 하고 가는 일도 줄었다. 나도 더 이상 친구들을 데리러 운동장에 나가지 않아도 되었다.</p>" },
+  s3_5: { title:"예시 보기",
+    html:"<p>화를 내며 한 명씩 데려오는 것보다 규칙과 방법을 바꾸는 것이 더 오래 효과가 있다는 것을 배웠다. 다음에도 같은 문제가 반복되면 혼자 참지 않고 먼저 방법을 제안하겠다.</p>" },
+  s4_link: { title:"예시 보기",
+    html:"<p><b>공동체 역량</b> — 학급을 위해 먼저 행동한다<br>→ 1단계: 내 구역이 아닌데도 10반 교실 2분단을 매일 쓸었다.</p>"
+      + "<p><b>소통 역량</b> — 의견이 다를 때 대화로 해결한다<br>→ 1단계: 말이 안 통하던 친구와 꿈 이야기를 나눴다.</p>"
+      + "<p><b>주도성 · 창의성</b> — 불편한 점을 개선한다<br>→ 3단계: 청소 구역을 잘게 나누자고 선생님께 건의했다.</p>"
+      + "<p><b>자기관리 역량</b> — 목표를 세우고 실천한다<br>→ 2단계: 10월 모의고사에서 풀 수 있는 문제부터 끝까지 풀었다.</p>" },
+  s5: { title:"예시 보기",
+    html:"<p><b>고마웠던·본받고 싶었던 행동</b><br>9월 체육대회 전 일주일 동안, ○○이는 점심시간마다 단체 줄넘기 연습에서 자주 걸리는 친구 옆에 서서 박자를 소리 내어 세어 주었다. 연습이 끝나면 줄을 정리해 체육 창고에 가져다 놓았다.</p>"
+      + "<p><b>그 친구의 모습 (한 줄)</b><br>남이 잘 안 보는 곳에서도 끝까지 챙기는 친구다.</p>"
+      + "<p><b>나도 해 보고 싶은 점</b><br>모둠 활동이 끝나면 뒷정리까지 먼저 챙겨 보고 싶다.</p>" },
+};
 
 /* ===== 4단계 역량 ===== */
 const CAPS = [
@@ -970,6 +1040,10 @@ function renderStep(step){
     recap.classList.remove("hidden");
   } else recap.classList.add("hidden");
 
+  const exEl = document.getElementById("st-example");
+  const ex = EXAMPLES[step.key];
+  exEl.innerHTML = ex ? '<details class="ex-box"><summary>'+esc(ex.title)+'</summary><div class="ex-body">'+ex.html+'</div></details>' : "";
+
   const body = document.getElementById("st-body");
   body.innerHTML = "";
   if(step.key === "s1") body.appendChild(buildStep1());
@@ -1003,9 +1077,16 @@ function buildStep1(){
     item.innerHTML =
       '<div class="exp-head">'
       + '<div class="exp-sit">'+esc(sit)+'</div>'
+      + (EXAMPLE_S1[i] ? '<button type="button" class="ex-mini">예시</button>' : '')
       + '<label class="pick"><input type="checkbox" name="s1pick" value="'+i+'"> 이걸로</label>'
       + '</div>'
+      + (EXAMPLE_S1[i] ? '<div class="ex-line hidden">'+esc(EXAMPLE_S1[i])+'</div>' : '')
       + '<textarea data-fid="'+fid+'" placeholder="한 줄 메모 (선택)">'+esc(state.data[fid]||"")+'</textarea>';
+    const exBtn = item.querySelector(".ex-mini");
+    if(exBtn) exBtn.addEventListener("click", ()=>{
+      const on = item.querySelector(".ex-line").classList.toggle("hidden");
+      exBtn.textContent = on ? "예시" : "예시 닫기";
+    });
     wrap.appendChild(item);
   });
   // 복원: 기존 pick(복수 가능 — 줄바꿈으로 구분)
@@ -1833,44 +1914,79 @@ document.getElementById("pr-go").addEventListener("click", ()=>{
   setTimeout(()=>{ window.print(); }, 80);
 });
 
-/* 각 쪽(.pg)을 A4 한 장에 딱 맞춘다.
-   - 내용이 많아 넘치면 → 그 쪽만 글자·여백 축소(.shrunk + font-size)
-   - 내용이 적어 남으면 → 답란(빈칸)을 늘려 한 장을 꽉 채운다 (화면에 빈칸이 차도록)
-   화면에서는 이어져 보이니 이 계산 없이는 인쇄 시 아래에 큰 여백이 생긴다. */
+/* 인쇄 쪽 맞추기 — 학생마다 A4 3장을 기본으로 맞춘다.
+   ⚠️ 화면에서 잰 높이와 실제 프린터 출력은 몇 mm씩 차이가 난다(프린터 드라이버·글꼴 렌더링).
+      그래서 한 장을 끝까지 꽉 채우지 않고 아래에 안전 여유(FIT_H·GROW_H)를 둔다.
+      예전에는 8px만 남기고 꽉 채워서, 미리보기는 3장인데 실제로 뽑으면 한 줄이 넘어가 4장이 됐다.
+   1) 각 쪽(.pg)이 넘치면 그 쪽만 글자·여백을 줄인다(최소 MIN_FS까지).
+   2) 세 쪽 모두 들어가면 → 남는 공간은 답란을 늘려 채운다(원본 양식처럼 한 장씩).
+   3) 최소 글자로도 안 들어가는 쪽이 있으면 → 그 학생은 .flow(이어 쓰기)로 바꾼다.
+      쪽을 강제로 넘기지 않고 한글처럼 이어서 흐르게 해, 중간에 빈 공간이 생기지 않는다.
+      이때도 이어서 3장 안에 들어가는 가장 큰 글자를 먼저 찾고, 정말 길 때만 4장 이상이 된다.
+   4) 양면용 빈 페이지(.pg-pad)는 학생 분량이 홀수 장일 때만 남겨 짝수 장으로 맞춘다. */
 function fitFormPages(container){
-  const PAGE_H = Math.round(269 * 96 / 25.4) - 12;   // A4 297mm - 위아래 여백 14mm ≈ 269mm
+  const MM = 96 / 25.4;
+  const PAGE_H = Math.floor(269 * MM);          // A4 297mm - 위아래 여백 14mm×2 = 269mm
+  const FIT_H  = PAGE_H - Math.round(8 * MM);   // 넘침 판단 기준: 아래 8mm 여유
+  const GROW_H = PAGE_H - Math.round(12 * MM);  // 답란 늘리기 한도: 아래 12mm 여유
+  const MIN_FS = 7.5, MAX_FS = 10;
   const GROW_SEL = "td.ans, .big2-box";
+
   container.querySelectorAll(".stu-form").forEach(form=>{
-    form.querySelectorAll(".pg").forEach(pg=>{
-      if(pg.classList.contains("pg-pad")) return;
-      // 초기화
+    const pages = Array.prototype.slice.call(form.querySelectorAll(".pg")).filter(pg=>!pg.classList.contains("pg-pad"));
+    const pad = form.querySelector(".pg-pad");
+    const setFs = (pg, fs)=>{ pg.style.fontSize = fs + "pt"; pg.classList.toggle("shrunk", fs < MAX_FS); };
+
+    // 초기화
+    form.classList.remove("flow");
+    pages.forEach(pg=>{
       pg.classList.remove("shrunk"); pg.style.fontSize = "";
       pg.querySelectorAll(GROW_SEL).forEach(el=>{ el.style.height=""; el.style.minHeight=""; });
-
-      // 1) 넘치면 축소
-      if(pg.scrollHeight > PAGE_H){
-        pg.classList.add("shrunk");
-        let fs = 10, guard = 0;
-        while(pg.scrollHeight > PAGE_H && fs > 6 && guard++ < 60){
-          fs -= 0.25; pg.style.fontSize = fs + "pt";
-        }
-      }
-
-      // 2) 남으면 답란을 늘려 한 장을 꽉 채운다
-      const grows = Array.prototype.slice.call(pg.querySelectorAll(GROW_SEL));
-      if(!grows.length) return;
-      for(let pass=0; pass<3; pass++){
-        const extra = (PAGE_H - 8) - pg.scrollHeight;
-        if(extra <= 12) break;
-        const share = extra / grows.length;
-        grows.forEach(el=>{
-          const cur = el.getBoundingClientRect().height;
-          const t = Math.round(cur + share);
-          if(el.tagName === "TD") el.style.height = t + "px";
-          else el.style.minHeight = t + "px";
-        });
-      }
     });
+
+    // 1) 쪽마다 넘치면 축소
+    let allFit = true;
+    pages.forEach(pg=>{
+      if(pg.scrollHeight <= FIT_H) return;
+      let fs = MAX_FS;
+      while(fs > MIN_FS){ fs -= 0.25; setFs(pg, fs); if(pg.scrollHeight <= FIT_H) break; }
+      if(pg.scrollHeight > FIT_H) allFit = false;
+    });
+
+    if(allFit){
+      // 2) 남는 공간은 답란을 늘려 채운다 (안전 여유 GROW_H까지만)
+      pages.forEach(pg=>{
+        const grows = Array.prototype.slice.call(pg.querySelectorAll(GROW_SEL));
+        if(!grows.length) return;
+        for(let pass=0; pass<3; pass++){
+          const extra = GROW_H - pg.scrollHeight;
+          if(extra <= 12) break;
+          const share = extra / grows.length;
+          grows.forEach(el=>{
+            const t = Math.round(el.getBoundingClientRect().height + share);
+            if(el.tagName === "TD") el.style.height = t + "px"; else el.style.minHeight = t + "px";
+          });
+        }
+      });
+      if(pad) pad.style.display = "";            // 3장 + 빈 1장 = 4장(짝수)
+      return;
+    }
+
+    // 3) 이어 쓰기(.flow) — 모든 쪽을 같은 글자 크기로, 쪽 나눔 없이 이어서.
+    form.classList.add("flow");
+    const total = ()=> pages.reduce((sum,pg)=> sum + pg.getBoundingClientRect().height, 0);
+    // 표 행이 쪽 경계에서 나뉠 때 생기는 자투리를 감안해 한 장당 FIT_H의 96%만 쓴다고 본다.
+    const PER_SHEET = FIT_H * 0.96;
+    let sheets = 3, fs = MAX_FS;
+    for(;;){
+      fs = MAX_FS;
+      pages.forEach(pg=>setFs(pg, fs));
+      while(total() > sheets * PER_SHEET && fs > MIN_FS){ fs -= 0.25; pages.forEach(pg=>setFs(pg, fs)); }
+      if(total() <= sheets * PER_SHEET || sheets >= 12) break;
+      sheets++;
+    }
+    const used = Math.max(1, Math.ceil(total() / PER_SHEET));
+    if(pad) pad.style.display = (used % 2 === 1) ? "" : "none";
   });
 }
 
